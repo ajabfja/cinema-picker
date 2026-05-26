@@ -1,5 +1,5 @@
 export default async function handler(req, res) {
-    // Enable automated cross-origin controls so your frontend can chat with this API safely
+    // Enable cross-origin controls so your frontend can chat with this API safely
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -16,7 +16,15 @@ export default async function handler(req, res) {
     try {
         // Formulate the target public Letterboxd Watchlist feed
         const url = `https://letterboxd.com/${username.trim().toLowerCase()}/watchlist/rss/`;
-        const response = await fetch(url);
+        
+        // NEW: We add custom browser headers here to look like a standard human visitor
+        const response = await fetch(url, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5'
+            }
+        });
 
         if (!response.ok) {
             return res.status(404).json({ error: 'Failed to locate Letterboxd watchlist. Verify the username is public.' });
