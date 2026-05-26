@@ -1,0 +1,954 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cinematic Movie Picker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <script src="https://unpkg.com/globe.gl"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        dark: '#0a0a0a',
+                        darker: '#050505',
+                        neon: '#10b981', 
+                        highlight: '#3b82f6', 
+                        crazy1: '#c026d3', 
+                        crazy2: '#e11d48', 
+                        vintage: '#f59e0b',
+                        vhs: '#8b5cf6',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #050505; color: #f8fafc; transition: filter 0.5s ease; }
+        .glass-panel {
+            background: rgba(10, 10, 10, 0.8);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+        .drag-over {
+            border-color: #10b981 !important;
+            background-color: rgba(16, 185, 129, 0.05) !important;
+        }
+        .hide-scrollbar::-webkit-scrollbar { display: none; }
+        
+        .filter-chip input:checked + div {
+            background-color: #064e3b; 
+            border-color: #10b981;
+            color: #10b981;
+        }
+        
+        details > summary { list-style: none; }
+        details > summary::-webkit-details-marker { display: none; }
+        input[type="checkbox"].accent-neon { accent-color: #10b981; }
+        input[type="range"].accent-neon { accent-color: #10b981; }
+
+        .hardware-scroll {
+            -webkit-overflow-scrolling: touch;
+            overscroll-behavior-y: contain;
+            will-change: scroll-position;
+            transform: translateZ(0);
+        }
+        .content-visibility-auto {
+            content-visibility: auto;
+            contain-intrinsic-size: 0 100px;
+        }
+
+        /* --- Analog / Archival Aesthetic Classes --- */
+        .kodak-mode { filter: sepia(35%) contrast(115%) saturate(125%) brightness(0.95); }
+        .kodak-overlay {
+            position: fixed; inset: 0; pointer-events: none; z-index: 9998;
+            background: radial-gradient(circle at center, transparent 30%, rgba(50, 20, 0, 0.4) 100%), 
+                        linear-gradient(rgba(255, 180, 80, 0.04), rgba(200, 100, 0, 0.08));
+            mix-blend-mode: multiply;
+        }
+        .film-grain {
+            position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.14;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            mix-blend-mode: overlay;
+        }
+
+        /* --- VHS Blind Box Classes --- */
+        .vhs-standby-text {
+            color: transparent;
+            text-shadow: 0 0 5px rgba(139, 92, 246, 0.8), 2px 0 2px rgba(255,0,0,0.5), -2px 0 2px rgba(0,255,255,0.5);
+            animation: vhs-pulse 2s infinite alternate;
+        }
+        @keyframes vhs-pulse {
+            0% { opacity: 0.7; text-shadow: 0 0 5px rgba(139, 92, 246, 0.8), 2px 0 2px rgba(255,0,0,0.5), -2px 0 2px rgba(0,255,255,0.5); }
+            100% { opacity: 1; text-shadow: 0 0 8px rgba(139, 92, 246, 1), 4px 0 4px rgba(255,0,0,0.7), -4px 0 4px rgba(0,255,255,0.7); }
+        }
+        .vhs-noise-overlay {
+            position: absolute; inset: 0;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0; pointer-events: none; mix-blend-mode: color-dodge; z-index: 20; transition: opacity 0.1s;
+        }
+        .vhs-noise-active { opacity: 0.9 !important; animation: vhs-jitter 0.15s infinite steps(3); }
+        .vhs-scanline {
+            position: absolute; top: 0; left: 0; right: 0; height: 10px; background: rgba(255,255,255,0.1); opacity: 0; z-index: 21;
+        }
+        .vhs-noise-active + .vhs-scanline { opacity: 1; animation: scanline-move 2s linear infinite; }
+        @keyframes vhs-jitter {
+            0% { background-position: 0 0; filter: contrast(120%) brightness(150%) hue-rotate(0deg); }
+            50% { background-position: 100% 100%; filter: contrast(150%) brightness(120%) hue-rotate(90deg); }
+            100% { background-position: -50% 50%; filter: contrast(110%) brightness(180%) hue-rotate(180deg); }
+        }
+        @keyframes scanline-move {
+            0% { transform: translateY(-10px); }
+            100% { transform: translateY(100px); }
+        }
+        
+        .time-locked {
+            opacity: 0.2; filter: grayscale(100%); transform: scale(0.98); pointer-events: none; border-color: rgba(255,255,255,0.02) !important;
+        }
+    </style>
+</head>
+<body class="min-h-screen font-sans flex flex-col p-6 overflow-x-hidden relative">
+
+    <div id="kodak-overlay-layer" class="kodak-overlay hidden transition-opacity duration-1000"></div>
+    <div id="film-grain-layer" class="film-grain hidden transition-opacity duration-1000"></div>
+
+    <header class="max-w-7xl w-full mx-auto flex flex-col md:flex-row items-center justify-between mb-8 relative z-10 gap-4">
+        <h1 class="text-3xl font-bold tracking-widest uppercase text-transparent bg-clip-text bg-gradient-to-r from-neon to-highlight hidden md:block shrink-0">
+            Cinema Picker
+        </h1>
+        <div class="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto justify-end">
+            
+            <button id="vhs-toggle" class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-vhs px-3 py-1.5 rounded-lg border border-slate-800 hover:border-vhs/50 bg-darker transition-all flex items-center gap-1.5">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                Blind Box: OFF
+            </button>
+
+            <button id="vintage-toggle" class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-vintage px-3 py-1.5 rounded-lg border border-slate-800 hover:border-vintage/50 bg-darker transition-all">35mm Mode: OFF</button>
+            
+            <div class="flex items-center gap-2 bg-darker p-1 rounded-lg border border-slate-800">
+                <button id="sound-toggle" class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-neon px-3 py-1 rounded transition-colors">Sound: OFF</button>
+                <div class="w-px h-4 bg-slate-800"></div>
+                <label id="lbl-spin-fx" class="text-[9px] md:text-[10px] font-medium uppercase text-slate-500 hover:text-slate-300 cursor-pointer px-2 py-1 rounded transition-colors flex items-center gap-1">
+                    + Spin FX <input type="file" id="spin-audio-input" accept="audio/*" class="hidden">
+                </label>
+                <label id="lbl-win-fx" class="text-[9px] md:text-[10px] font-medium uppercase text-slate-500 hover:text-slate-300 cursor-pointer px-2 py-1 rounded transition-colors flex items-center gap-1">
+                    + Win FX <input type="file" id="win-audio-input" accept="audio/*" class="hidden">
+                </label>
+            </div>
+            
+            <div id="movie-count" class="text-slate-500 text-xs md:text-sm font-medium tracking-wide">Awaiting Data</div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl w-full mx-auto grid grid-cols-1 xl:grid-cols-4 gap-8 flex-1 relative z-10">
+        
+        <div class="flex flex-col gap-6 xl:col-span-1">
+            
+            <div class="glass-panel p-5 rounded-xl border border-slate-800 flex flex-col gap-3">
+                <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Sync Account</span>
+                <div class="flex gap-2">
+                    <input type="text" id="lb-username" placeholder="Letterboxd Username" class="flex-1 bg-darker border border-slate-800 rounded p-2.5 text-xs text-slate-200 focus:outline-none focus:border-highlight transition-colors placeholder:text-slate-600">
+                    <button id="sync-btn" class="bg-slate-900 border border-slate-700 hover:border-highlight text-slate-300 hover:text-white px-4 py-2 rounded text-xs font-bold transition-colors">Sync</button>
+                </div>
+                <div id="sync-status" class="text-[11px] text-slate-500 font-mono hidden"></div>
+            </div>
+
+            <div id="drop-zone" class="glass-panel p-4 rounded-xl border border-dashed border-slate-800 flex flex-col items-center justify-center text-center cursor-pointer transition-colors hover:border-slate-700 group">
+                <input type="file" id="file-input" accept=".csv" class="hidden">
+                <div id="drop-zone-text" class="flex flex-col items-center pointer-events-none">
+                    <p class="text-slate-500 font-medium text-xs tracking-wide">Or backup drag-and-drop CSV file</p>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-xl">
+                <div id="roulette-screen" class="bg-darker border border-slate-800 rounded-lg p-4 h-20 mb-4 flex items-center justify-center overflow-hidden relative">
+                    <div id="vhs-overlay" class="vhs-noise-overlay"></div>
+                    <div class="vhs-scanline"></div>
+                    <p id="roulette-display" class="text-lg font-bold text-slate-600 text-center tracking-wide leading-tight px-2 relative z-10">Standby</p>
+                </div>
+                
+                <div class="flex gap-3">
+                    <button id="spin-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg border border-slate-700 hover:border-neon transition-colors flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">
+                        <svg class="w-4 h-4 group-hover:animate-spin-fast text-neon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                        Spin Filtered
+                    </button>
+                    
+                    <button id="crazy-btn" class="flex-1 bg-gradient-to-br from-crazy1 to-crazy2 hover:from-purple-500 hover:to-pink-500 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg shadow-[0_0_15px_rgba(225,29,72,0.3)] hover:shadow-[0_0_25px_rgba(225,29,72,0.5)] transition-shadow flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">
+                        <svg class="w-4 h-4 group-hover:animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        Go Crazy
+                    </button>
+                </div>
+            </div>
+
+            <div class="glass-panel p-6 rounded-xl opacity-30 pointer-events-none transition-opacity duration-500 max-h-[70vh] overflow-y-auto hide-scrollbar hardware-scroll" id="controls-panel">
+                
+                <div id="runtime-filter-container" class="hidden mb-6 bg-[#050505] p-4 rounded-lg border border-slate-800 shadow-inner">
+                    <div class="flex justify-between items-center mb-3">
+                        <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold flex items-center gap-1.5">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                            Time-to-Kill
+                        </span>
+                        <span id="time-display" class="text-xs font-mono text-neon bg-emerald-900/20 px-2 py-0.5 rounded">Any</span>
+                    </div>
+                    <input type="range" id="time-slider" min="30" max="240" value="240" class="w-full accent-neon cursor-pointer">
+                </div>
+
+                <div class="flex justify-between items-end mb-4">
+                    <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Library Filters</h3>
+                    <button id="clear-filters" class="text-[10px] text-slate-500 hover:text-neon uppercase tracking-wider hidden">Clear All</button>
+                </div>
+
+                <button id="open-globe-btn" class="w-full bg-[#050505] border border-slate-800 hover:border-highlight text-slate-400 hover:text-highlight transition-colors py-3 rounded-lg text-xs uppercase tracking-widest font-bold mb-6 hidden flex items-center justify-center gap-2 group">
+                    <svg class="w-4 h-4 text-highlight group-hover:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Explore World Map
+                </button>
+
+                <div id="dynamic-filters-container" class="flex flex-col gap-4">
+                    <p class="text-slate-600 text-sm italic">Filters will appear after sync.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="xl:col-span-3 glass-panel p-6 rounded-xl flex flex-col h-[85vh]">
+            <div class="flex justify-between items-end mb-6 pb-4 border-b border-slate-800 shrink-0">
+                <h2 class="text-lg font-semibold text-slate-300 tracking-wide">Director's Cut</h2>
+                <span id="filtered-count" class="text-neon text-sm font-mono bg-emerald-900/20 px-3 py-1 rounded">0 visible</span>
+            </div>
+            
+            <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-2">
+                <div class="col-span-full h-full flex flex-col items-center justify-center text-slate-700 gap-4">
+                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M7 4v16M17 4v16M3 8h4m10 0h4M3 12h18M3 16h4m10 0h4M4 20h16a1 1 0 001-1V5a1 1 0 00-1-1H4a1 1 0 00-1 1v14a1 1 0 001 1z"></path></svg>
+                    <p class="text-sm tracking-wide">Awaiting data sequence sync.</p>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <div id="globe-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-40 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-all duration-500">
+        <div class="w-full max-w-6xl h-[80vh] relative flex items-center justify-center border border-slate-800 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.05)] bg-[#030303]" id="globe-container"></div>
+        <div class="mt-8 flex gap-6 items-center w-full max-w-6xl justify-between px-4">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-highlight animate-pulse"></div>
+                <span id="globe-selection-text" class="text-slate-400 font-mono text-sm tracking-widest uppercase">Click a region to filter</span>
+            </div>
+            <button id="close-globe" class="text-slate-400 hover:text-white border border-slate-700 hover:border-slate-400 px-6 py-2 rounded uppercase tracking-wider text-xs transition-colors font-bold">Close Map</button>
+        </div>
+    </div>
+
+    <div id="winner-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
+        <div class="glass-panel p-1 rounded-xl max-w-lg w-full mx-4 transform scale-95 transition-transform duration-300" id="modal-content">
+            <div class="bg-[#080808] p-10 rounded-lg flex flex-col items-center text-center relative overflow-hidden border border-slate-800">
+                <div id="modal-accent-line" class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon to-highlight"></div>
+                <span id="modal-super-title" class="text-neon text-xs font-bold tracking-[0.3em] uppercase mb-4">Selection Locked</span>
+                
+                <div id="winner-poster-container" class="hidden flex justify-center mb-6 w-full transition-opacity duration-500 opacity-0 relative z-10">
+                    <img id="winner-poster" src="" alt="Poster" class="w-48 h-72 object-cover rounded shadow-lg border border-slate-700">
+                </div>
+
+                <h2 id="winner-title" class="text-4xl font-bold text-white mb-2 leading-tight tracking-tight relative z-10">Title</h2>
+                <p id="winner-year" class="text-slate-400 font-mono text-lg mb-6 tracking-widest relative z-10">Year</p>
+                
+                <div id="winner-meta" class="flex flex-wrap justify-center gap-2 mb-8 relative z-10"></div>
+                
+                <a id="winner-link" href="#" target="_blank" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-6 rounded transition-colors flex items-center justify-center gap-2 mb-4 group relative z-10">
+                    Open Link
+                    <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+                <button id="close-modal" class="text-slate-600 hover:text-slate-400 text-xs tracking-widest uppercase transition-colors mt-2 relative z-10">Dismiss</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Core State ---
+        let movies = [];
+        let spinPool = []; 
+        let isSpinning = false;
+        
+        let colTitle = 'Title', colURL = 'Link', colYear = 'Year';
+        let filterableColumns = [
+            { id: 'genre', rawHeader: 'Genre', uiLabel: 'Genre', isEra: false },
+            { id: 'country', rawHeader: 'Country', uiLabel: 'Country', isEra: false },
+            { id: 'director', rawHeader: 'Director', uiLabel: 'Director', isEra: false },
+            { id: 'era', rawHeader: 'Cinema Movement/Era', uiLabel: 'Cinema Movement/Era', isEra: true }
+        ]; 
+        let activeFilters = { 'Genre': [], 'Country': [], 'Director': [], 'Cinema Movement/Era': [] }; 
+
+        // Background Enrichment Queue
+        let isSyncingBackground = false;
+        let syncedCount = 0;
+
+        // Toggles
+        let vintageMode = false;
+        let blindBoxMode = false;
+
+        // Audio
+        let audioCtx;
+        let soundEnabled = false;
+        let customSpinAudio = null;
+        let customWinAudio = null;
+
+        const soundToggle = document.getElementById('sound-toggle');
+        const vintageToggle = document.getElementById('vintage-toggle');
+        const vhsToggle = document.getElementById('vhs-toggle');
+        const filmGrainLayer = document.getElementById('film-grain-layer');
+        const kodakOverlayLayer = document.getElementById('kodak-overlay-layer');
+        const vhsOverlay = document.getElementById('vhs-overlay');
+        const rouletteDisplay = document.getElementById('roulette-display');
+        const timeSlider = document.getElementById('time-slider');
+        const timeDisplay = document.getElementById('time-display');
+
+        // Username Elements
+        const lbUsername = document.getElementById('lb-username');
+        const syncBtn = document.getElementById('sync-btn');
+        const syncStatus = document.getElementById('sync-status');
+
+        // --- Username Account Sync ---
+        syncBtn.addEventListener('click', async () => {
+            const user = lbUsername.value.trim();
+            if (!user) return;
+
+            syncStatus.style.display = 'block';
+            syncStatus.innerText = 'Connecting to Letterboxd...';
+            syncBtn.disabled = true;
+
+            try {
+                // Fetch basic watchlist from our secure proxy backend
+                const res = await fetch(`/api/fetch-watchlist?username=${encodeURIComponent(user)}`);
+                const data = await res.json();
+
+                if (data.error) {
+                    syncStatus.innerText = `Error: ${data.error}`;
+                    syncBtn.disabled = false;
+                    return;
+                }
+
+                // Initialize raw array elements
+                movies = data.movies.map(m => ({
+                    _CoreTitle: m.title,
+                    _CoreYear: m.year,
+                    Link: m.link,
+                    Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
+                    _CoreRuntime: 0, _CorePoster: null,
+                    _Loaded: false
+                }));
+
+                setupInterfaceAfterLoad();
+                
+                // Fire off the real-time background lookup orchestrator
+                syncedCount = 0;
+                isSyncingBackground = true;
+                enrichNextMovieInQueue();
+
+            } catch (err) {
+                syncStatus.innerText = 'Failed connection to API endpoint.';
+                syncBtn.disabled = false;
+            }
+        });
+
+        // Loop through movies sequentially to balance API lookups smoothly
+        async function enrichNextMovieInQueue() {
+            if (!isSyncingBackground) return;
+
+            let target = movies.find(m => !m._Loaded);
+            if (!target) {
+                syncStatus.innerText = '✓ All film payloads fully synchronized.';
+                isSyncingBackground = false;
+                syncBtn.disabled = false;
+                buildFiltersOptimized();
+                return;
+            }
+
+            syncStatus.innerText = `Syncing details: ${syncedCount}/${movies.length} films...`;
+
+            try {
+                // IMPORTANT: Calling the backend script instead of TMDB directly
+                const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
+                if (detailRes.ok) {
+                    const meta = await detailRes.json();
+                    target.Genre = meta.genres;
+                    target.Country = meta.countries;
+                    target.Director = meta.director;
+                    target['Cinema Movement/Era'] = meta.era;
+                    target._CoreRuntime = meta.runtime;
+                    target._CorePoster = meta.poster;
+                }
+            } catch (e) { console.error(e); }
+
+            target._Loaded = true;
+            syncedCount++;
+
+            // Every 10 movies, rebuild filter menu UI incrementally so they can start playing early
+            if (syncedCount % 10 === 0 || syncedCount === movies.length) {
+                buildFiltersOptimized();
+                recalibrateRuntimeSlider();
+            }
+
+            applyFilters();
+            setTimeout(enrichNextMovieInQueue, 250); 
+        }
+
+        function setupInterfaceAfterLoad() {
+            document.getElementById('controls-panel').classList.remove('opacity-30', 'pointer-events-none');
+            document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('crazy-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('open-globe-btn').classList.remove('hidden');
+            document.getElementById('runtime-filter-container').classList.remove('hidden');
+            document.getElementById('movie-count').innerText = `${movies.length} Records`;
+            
+            if(blindBoxMode) {
+                rouletteDisplay.innerText = "[ STATIC SIGNAL ]";
+                rouletteDisplay.classList.add('vhs-standby-text');
+            } else {
+                rouletteDisplay.innerText = "System Ready";
+                rouletteDisplay.classList.remove('text-slate-600');
+                rouletteDisplay.classList.add('text-neon');
+            }
+        }
+
+        function recalibrateRuntimeSlider() {
+            let maxRun = Math.max(...movies.map(m => m._CoreRuntime || 0));
+            if (maxRun > timeSlider.max) {
+                timeSlider.max = maxRun;
+                timeSlider.value = maxRun;
+            }
+        }
+
+        // Backup Drag & Drop file fallback loader
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length) {
+                Papa.parse(e.target.files[0], {
+                    header: true, skipEmptyLines: true,
+                    complete: function(results) {
+                        movies = results.data.map(row => ({
+                            _CoreTitle: row[Object.keys(row).find(k=>k.toLowerCase().includes('title')||k.toLowerCase().includes('name'))] || '',
+                            _CoreYear: row[Object.keys(row).find(k=>k.toLowerCase().includes('year'))] || '',
+                            Link: row[Object.keys(row).find(k=>k.toLowerCase().includes('link')||k.toLowerCase().includes('url'))] || '',
+                            Genre: row[Object.keys(row).find(k=>k.toLowerCase().includes('genre'))] || '',
+                            Country: row[Object.keys(row).find(k=>k.toLowerCase().includes('country'))] || '',
+                            Director: row[Object.keys(row).find(k=>k.toLowerCase().includes('director'))] || '',
+                            'Cinema Movement/Era': row[Object.keys(row).find(k=>k.toLowerCase().includes('era')||k.toLowerCase().includes('movement'))] || '',
+                            _CoreRuntime: parseInt(row.Runtime || row.Length) || 0,
+                            _CorePoster: row.Poster || null,
+                            _Loaded: true
+                        }));
+                        isSyncingBackground = false;
+                        syncStatus.style.display = 'none';
+                        setupInterfaceAfterLoad();
+                        buildFiltersOptimized();
+                        recalibrateRuntimeSlider();
+                        applyFilters();
+                    }
+                });
+            }
+        });
+
+        // --- Sound Engine Settings ---
+        soundToggle.addEventListener('click', () => {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            soundEnabled = !soundEnabled;
+            updateSoundToggleAesthetics();
+        });
+
+        vintageToggle.addEventListener('click', () => {
+            vintageMode = !vintageMode;
+            vintageToggle.innerText = vintageMode ? '35mm Mode: ON' : '35mm Mode: OFF';
+            vintageToggle.classList.toggle('text-vintage', vintageMode);
+            vintageToggle.classList.toggle('bg-amber-900/30', vintageMode);
+            document.body.classList.toggle('kodak-mode', vintageMode);
+            filmGrainLayer.classList.toggle('hidden', !vintageMode);
+            kodakOverlayLayer.classList.toggle('hidden', !vintageMode);
+            updateSoundToggleAesthetics();
+        });
+
+        vhsToggle.addEventListener('click', () => {
+            blindBoxMode = !blindBoxMode;
+            vhsToggle.innerHTML = blindBoxMode 
+                ? `<svg class="w-3 h-3 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"></path></svg> Blind Box: ON`
+                : `<svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg> Blind Box: OFF`;
+            
+            vhsToggle.classList.toggle('text-vhs', blindBoxMode);
+            vhsToggle.classList.toggle('bg-purple-900/30', blindBoxMode);
+            
+            if (blindBoxMode && movies.length > 0) {
+                rouletteDisplay.innerText = "[ STATIC SIGNAL ]";
+                rouletteDisplay.classList.add('vhs-standby-text');
+            } else if (movies.length > 0) {
+                rouletteDisplay.innerText = "System Ready";
+                rouletteDisplay.classList.remove('vhs-standby-text');
+            }
+            updateSoundToggleAesthetics();
+        });
+
+        function updateSoundToggleAesthetics() {
+            soundToggle.innerText = soundEnabled ? 'Sound: ON' : 'Sound: OFF';
+            soundToggle.classList.remove('text-neon', 'text-vintage', 'text-vhs', 'bg-emerald-900/30', 'bg-amber-900/30', 'bg-purple-900/30');
+            if (soundEnabled) {
+                if (blindBoxMode) { soundToggle.classList.add('text-vhs', 'bg-purple-900/30'); }
+                else if (vintageMode) { soundToggle.classList.add('text-vintage', 'bg-amber-900/30'); }
+                else { soundToggle.classList.add('text-neon', 'bg-emerald-900/30'); }
+            }
+        }
+
+        function playProjectorClick() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const oscGain = audioCtx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(120, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.03);
+            oscGain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+            oscGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.03);
+            osc.connect(oscGain); oscGain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.03);
+        }
+
+        function playProjectorWin() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(80, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.4);
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+        }
+
+        function playVHSSpin() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(600 + Math.random() * 200, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.04, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playVHSClunk() {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(60, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.3);
+            gain.gain.setValueAtTime(1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            
+            const clickOsc = audioCtx.createOscillator();
+            const clickGain = audioCtx.createGain();
+            clickOsc.type = 'triangle';
+            clickOsc.frequency.setValueAtTime(800, audioCtx.currentTime);
+            clickOsc.frequency.exponentialRampToValueAtTime(100, audioCtx.currentTime + 0.1);
+            clickGain.gain.setValueAtTime(0.5, audioCtx.currentTime);
+            clickGain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+            clickOsc.connect(clickGain); clickGain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.3);
+            clickOsc.start(); clickOsc.stop(audioCtx.currentTime + 0.1);
+        }
+
+        function playSpinSound(frequency) {
+            if (!soundEnabled) return;
+            if (customSpinAudio) { let clone = customSpinAudio.cloneNode(); clone.play().catch(()=>{}); return; }
+            if (blindBoxMode) { playVHSSpin(); return; }
+            if (vintageMode) { playProjectorClick(); return; }
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'square';
+            osc.frequency.setValueAtTime(frequency, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        function playWinSound() {
+            if (!soundEnabled) return;
+            if (customWinAudio) { customWinAudio.currentTime = 0; customWinAudio.play().catch(()=>{}); return; }
+            if (blindBoxMode) { playVHSClunk(); return; }
+            if (vintageMode) { playProjectorWin(); return; }
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.8);
+            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.8);
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.8);
+        }
+
+        // --- Globe Setup ---
+        let myGlobe = null; let countriesGeo = null;
+        const globeModal = document.getElementById('globe-modal');
+        const openGlobeBtn = document.getElementById('open-globe-btn');
+        const closeGlobeBtn = document.getElementById('close-globe');
+        const globeSelectionText = document.getElementById('globe-selection-text');
+
+        fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+            .then(res => res.json()).then(data => { countriesGeo = data; });
+
+        function initGlobe() {
+            if (myGlobe) return;
+            const container = document.getElementById('globe-container');
+            myGlobe = Globe()(container)
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
+                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+                .showAtmosphere(true).atmosphereColor('#10b981').atmosphereAltitude(0.15)
+                .polygonsData(countriesGeo.features).polygonAltitude(0.01)
+                .polygonCapColor(() => 'rgba(20, 20, 20, 0.7)').polygonSideColor(() => 'rgba(16, 185, 129, 0.15)').polygonStrokeColor(() => '#064e3b')
+                .polygonLabel(({ properties: d }) => `<div class="bg-black/90 backdrop-blur border border-highlight text-highlight px-3 py-1.5 rounded text-xs font-mono uppercase tracking-wider shadow-xl">${d.ADMIN}</div>`)
+                .onPolygonHover(hoverD => {
+                    myGlobe.polygonAltitude(d => d === hoverD ? 0.06 : 0.01)
+                           .polygonCapColor(d => d === hoverD ? 'rgba(59, 130, 246, 0.8)' : 'rgba(20, 20, 20, 0.7)');
+                })
+                .onPolygonClick(({ properties: d }) => { handleGlobeClick(d.ADMIN); });
+            myGlobe.width(container.clientWidth).height(container.clientHeight);
+            myGlobe.controls().autoRotate = true; myGlobe.controls().autoRotateSpeed = 0.8;
+        }
+
+        const COUNTRY_ALIASES = {
+            "United States of America": ["USA", "US", "United States"],
+            "United Kingdom": ["UK", "Britain", "Great Britain"],
+            "South Korea": ["Korea", "Republic of Korea"],
+            "Russia": ["Soviet Union", "USSR", "Russian Federation"],
+            "Taiwan": ["Taiwan, Province of China", "Republic of China"]
+        };
+
+        function handleGlobeClick(geoCountryName) {
+            const aliases = COUNTRY_ALIASES[geoCountryName] || [];
+            const searchTerms = [geoCountryName.toLowerCase(), ...aliases.map(a => a.toLowerCase())];
+            let matchedCSVVal = null;
+            const uniqueCSVVals = new Set();
+            movies.forEach(m => { if(m.Country) m.Country.split(',').forEach(v => uniqueCSVVals.add(v.trim())); });
+            
+            for (let v of uniqueCSVVals) {
+                if (searchTerms.some(term => v.toLowerCase() === term || v.toLowerCase().includes(term))) { matchedCSVVal = v; break; }
+            }
+            if (matchedCSVVal) {
+                globeSelectionText.innerText = `Matched: ${matchedCSVVal}`;
+                activeFilters['Country'] = [matchedCSVVal];
+                document.querySelectorAll('.filter-chip-input').forEach(cb => {
+                    if (cb.dataset.col === 'Country') cb.checked = (cb.value === matchedCSVVal);
+                });
+                document.getElementById('clear-filters').style.display = 'block';
+                applyFilters();
+                setTimeout(() => globeModal.classList.add('opacity-0', 'pointer-events-none'), 800);
+            } else {
+                globeSelectionText.innerText = `${geoCountryName} (No matched films)`;
+                setTimeout(() => globeSelectionText.innerText = "Click a region to filter", 1500);
+            }
+        }
+
+        openGlobeBtn.addEventListener('click', () => {
+            globeModal.classList.remove('opacity-0', 'pointer-events-none');
+            if (countriesGeo && !myGlobe) initGlobe();
+        });
+        closeGlobeBtn.addEventListener('click', () => globeModal.classList.add('opacity-0', 'pointer-events-none'));
+
+        // --- Filter Building & Sync ---
+        const ERA_HIERARCHY = {
+            "The New Waves & Modernism": { "European New Waves": ["nouvelle vague", "french new wave", "czech new wave", "british new wave", "new german cinema", "romanian new wave"], "Global New Waves": ["japanese new wave", "nuberu bagu", "taiwanese new wave", "hong kong new wave", "cinema novo", "korean new wave"], "American Renaissance": ["new hollywood", "la rebellion", "no wave"] },
+            "Realism & Phenomenological Cinema": { "Classical Realism": ["poetic realism", "neorealism", "italian neorealism"], "Contemporary & Minimalist": ["dogme 95", "mumblecore", "slacker", "kitchen sink", "free cinema", "direct cinema"] },
+            "Formalism & The Avant-Garde": { "Early Innovation": ["soviet montage", "german expressionism", "french impressionism", "kammerspielfilm", "surrealism"], "Aestheticism & Style": ["cinema du look", "fifth generation", "pure cinema"] },
+            "Genre, Pulp & Transgressive": { "Crime & Noir": ["film noir", "neo-noir", "poliziotteschi", "french polar"], "Horror & Exploitation": ["giallo", "j-horror", "pink film", "cyberpunk", "tokusatsu", "ozploitation", "video nasty"], "Revisionist & Cult": ["spaghetti western", "midnight movie", "yugoslav black wave", "blaxploitation"] },
+            "Studio Eras & Institutional": { "The Studio System": ["classic hollywood", "golden age of japanese", "pre-code", "golden age of mexican", "heritage film"] }
+        };
+
+        function getEraPlacement(eraName) {
+            if (typeof eraName !== 'string') return { master: "Other & Unclassified", sub: "Global Movements" };
+            const lower = eraName.toLowerCase();
+            for (const [master, subs] of Object.entries(ERA_HIERARCHY)) {
+                for (const [sub, keywords] of Object.entries(subs)) {
+                    if (keywords.some(kw => lower.includes(kw)) || lower.includes(sub.toLowerCase().split(' ')[0])) return { master, sub };
+                }
+            }
+            return { master: "Other & Unclassified", sub: "Global Movements" };
+        }
+
+        function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
+
+        function buildFiltersOptimized() {
+            const dynamicFiltersContainer = document.getElementById('dynamic-filters-container');
+            if (filterableColumns.length === 0) { dynamicFiltersContainer.innerHTML = '<p class="text-slate-600 text-sm">No standard categories found.</p>'; return; }
+            let filtersHTML = '';
+            filterableColumns.forEach(colObj => {
+                const uniqueValues = new Set();
+                movies.forEach(m => { if(m[colObj.rawHeader]) m[colObj.rawHeader].split(',').forEach(val => uniqueValues.add(val.trim())); });
+                activeFilters[colObj.rawHeader] = []; 
+                const valsArray = Array.from(uniqueValues).filter(Boolean);
+
+                let catHTML = `<details class="group bg-[#0a0a0a] rounded-lg border border-slate-800 open:pb-4 relative content-visibility-auto"><summary class="flex justify-between items-center p-4 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-slate-400 group-open:text-neon group-open:border-b group-open:border-slate-800/50 hover:bg-slate-900/50 rounded-lg transition-colors">${colObj.uiLabel} <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary><div class="p-4 pb-2 relative filter-content-block"><div class="mb-4 sticky top-0 bg-[#0a0a0a] z-10 pb-3 border-b border-slate-800/80 -mt-2 pt-2"><input type="text" placeholder="Search ${colObj.uiLabel}..." class="w-full bg-[#050505] border border-slate-700 rounded p-2 text-xs text-slate-300 focus:outline-none focus:border-neon category-search transition-colors placeholder:text-slate-600"></div>`;
+
+                if (colObj.isEra) {
+                    const groupedEras = {}; 
+                    valsArray.forEach(era => {
+                        const { master, sub } = getEraPlacement(era);
+                        if(!groupedEras[master]) groupedEras[master] = {};
+                        if(!groupedEras[master][sub]) groupedEras[master][sub] = [];
+                        groupedEras[master][sub].push(era);
+                    });
+                    Object.keys(groupedEras).sort((a, b) => (a.includes('Other')?1:b.includes('Other')?-1:a.localeCompare(b))).forEach(masterName => {
+                        catHTML += `<details class="mb-2 last:mb-0 master-block group/master bg-[#050505] rounded border border-slate-800/50 content-visibility-auto"><summary class="text-[11px] font-bold text-slate-300 uppercase tracking-widest p-3 cursor-pointer hover:bg-slate-900/50 transition-colors flex justify-between items-center rounded"><div class="flex items-center gap-3"><input type="checkbox" class="master-cb accent-neon w-3.5 h-3.5 cursor-pointer"><span>${masterName}</span></div><svg class="w-3 h-3 transition-transform group-open/master:rotate-180 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary><div class="pl-3 pb-3 border-l-2 border-slate-800 ml-2 mt-1">`;
+                        Object.keys(groupedEras[masterName]).sort().forEach(subName => {
+                            catHTML += `<details class="mb-2 last:mb-0 sub-block group/sub bg-[#0a0a0a] rounded border border-slate-800/30 content-visibility-auto"><summary class="text-[10px] font-semibold text-slate-400 uppercase tracking-widest p-2 px-3 cursor-pointer hover:text-slate-200 transition-colors flex justify-between items-center"><div class="flex items-center gap-3"><input type="checkbox" class="sub-cb accent-neon w-3 h-3 cursor-pointer"><span>${subName}</span></div><svg class="w-3 h-3 transition-transform group-open/sub:rotate-180 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary><div class="flex flex-wrap gap-2 p-3 pt-1 pl-8">`;
+                            groupedEras[masterName][subName].sort().forEach(val => { catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; });
+                            catHTML += `</div></details>`;
+                        });
+                        catHTML += `</div></details>`;
+                    });
+                } else {
+                    catHTML += `<div class="flex flex-wrap gap-2">`;
+                    valsArray.sort().forEach(val => { catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; });
+                    catHTML += `</div>`;
+                }
+                filtersHTML += catHTML + `</div></details>`;
+            });
+            dynamicFiltersContainer.innerHTML = filtersHTML;
+        }
+
+        // --- Slider & UI Events ---
+        timeSlider.addEventListener('input', (e) => {
+            const val = e.target.value;
+            timeDisplay.innerText = val == timeSlider.max ? "Any" : `< ${val}m`;
+            applyFilters();
+        });
+
+        document.getElementById('dynamic-filters-container').addEventListener('change', (e) => {
+            if (e.target.matches('.filter-chip-input') || e.target.matches('.sub-cb') || e.target.matches('.master-cb')) {
+                if(e.target.matches('.filter-chip-input')){
+                    if(e.target.checked) activeFilters[e.target.dataset.col].push(e.target.value);
+                    else activeFilters[e.target.dataset.col] = activeFilters[e.target.dataset.col].filter(v => v !== e.target.value);
+                } else if(e.target.matches('.sub-cb')) {
+                    e.target.closest('.sub-block').querySelectorAll('.filter-chip-input').forEach(cb => {
+                        cb.checked = e.target.checked;
+                        if(e.target.checked && !activeFilters[cb.dataset.col].includes(cb.value)) activeFilters[cb.dataset.col].push(cb.value);
+                        else if(!e.target.checked) activeFilters[cb.dataset.col] = activeFilters[cb.dataset.col].filter(v => v !== cb.value);
+                    });
+                } else if(e.target.matches('.master-cb')) {
+                    e.target.closest('.master-block').querySelectorAll('.sub-cb').forEach(cb => cb.checked = e.target.checked);
+                    e.target.closest('.master-block').querySelectorAll('.filter-chip-input').forEach(cb => {
+                        cb.checked = e.target.checked;
+                        if(e.target.checked && !activeFilters[cb.dataset.col].includes(cb.value)) activeFilters[cb.dataset.col].push(cb.value);
+                        else if(!e.target.checked) activeFilters[cb.dataset.col] = activeFilters[cb.dataset.col].filter(v => v !== cb.value);
+                    });
+                }
+                document.getElementById('clear-filters').style.display = Object.values(activeFilters).some(arr => arr.length > 0) ? 'block' : 'none';
+                applyFilters();
+            }
+        });
+
+        document.getElementById('clear-filters').addEventListener('click', () => {
+            document.querySelectorAll('.filter-chip-input, .master-cb, .sub-cb').forEach(cb => cb.checked = false);
+            Object.keys(activeFilters).forEach(key => activeFilters[key] = []);
+            document.getElementById('clear-filters').style.display = 'none';
+            applyFilters();
+        });
+
+        function applyFilters() {
+            let displayPool = movies.filter(m => {
+                for (const colObj of filterableColumns) {
+                    const selectedVals = activeFilters[colObj.rawHeader];
+                    if (selectedVals && selectedVals.length > 0) {
+                        if (!m[colObj.rawHeader]) return false; 
+                        const movieVals = m[colObj.rawHeader].split(',').map(v => v.trim());
+                        if (!selectedVals.some(sv => movieVals.includes(sv))) return false;
+                    }
+                }
+                return true;
+            });
+
+            const sliderVal = parseInt(timeSlider.value, 10);
+            spinPool = displayPool.filter(m => !m._Loaded || m._CoreRuntime === 0 || m._CoreRuntime <= sliderVal);
+
+            renderGrid(displayPool, sliderVal);
+        }
+
+        function renderGrid(displayPool, sliderVal) {
+            document.getElementById('filtered-count').innerText = `${spinPool.length} playable`;
+            if(displayPool.length === 0) { 
+                document.getElementById('movie-grid').innerHTML = '<div class="col-span-full h-full flex items-center justify-center text-slate-600"><p class="text-sm">No matches found.</p></div>'; 
+                return; 
+            }
+
+            let gridHTML = '';
+            displayPool.slice(0, 200).forEach(m => {
+                let infoHTML = '';
+                filterableColumns.forEach(colObj => {
+                    if(m[colObj.rawHeader]) infoHTML += `<div class="flex flex-col mb-2 last:mb-0"><span class="text-[9px] uppercase tracking-widest text-slate-600">${colObj.uiLabel}</span><span class="text-sm text-slate-300 font-medium leading-snug">${m[colObj.rawHeader]}</span></div>`;
+                });
+                
+                const isLockedOut = m._Loaded && m._CoreRuntime > 0 && m._CoreRuntime > sliderVal;
+                const lockClass = isLockedOut ? 'time-locked' : '';
+
+                gridHTML += `
+                    <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 hover:border-slate-600 transition-all duration-300 flex flex-col justify-between group shadow-lg content-visibility-auto ${lockClass}">
+                        <div class="flex-1">
+                            <div class="flex items-start justify-between gap-3 mb-4">
+                                <h3 class="font-bold text-xl text-slate-200 leading-snug group-hover:text-neon transition-colors tracking-wide">${m._CoreTitle}</h3>
+                                <div class="flex flex-col items-end">
+                                    ${m._CoreYear ? `<span class="text-slate-500 font-mono text-sm whitespace-nowrap">${m._CoreYear}</span>` : ''}
+                                    ${m._CoreRuntime ? `<span class="text-neon font-mono text-xs whitespace-nowrap mt-1">${m._CoreRuntime}m</span>` : ''}
+                                </div>
+                            </div>
+                            <div class="bg-[#050505] rounded border border-slate-800/50 p-3">
+                                ${infoHTML}
+                            </div>
+                        </div>
+                        <div class="mt-4 flex justify-end items-center pt-3 border-t border-slate-800/50">
+                            ${(colURL && m[colURL]) ? `<a href="${m[colURL]}" target="_blank" class="text-slate-500 hover:text-highlight transition-colors flex items-center gap-1 text-xs uppercase tracking-wider font-bold">Letterboxd <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg></a>` : ''}
+                        </div>
+                    </div>`;
+            });
+            if (displayPool.length > 200) gridHTML += `<div class="col-span-full text-center text-slate-600 text-xs py-4">Showing first 200 of ${displayPool.length} results.</div>`;
+            document.getElementById('movie-grid').innerHTML = gridHTML;
+        }
+
+        // --- Roulette Spin ---
+        const spinBtn = document.getElementById('spin-btn');
+        const crazyBtn = document.getElementById('crazy-btn');
+
+        spinBtn.addEventListener('click', () => { if(spinPool.length > 0 && !isSpinning) executeSpin(spinPool, false); });
+        crazyBtn.addEventListener('click', () => { if(movies.length > 0 && !isSpinning) executeSpin(movies, true); });
+
+        function executeSpin(pool, isCrazyMode) {
+            isSpinning = true;
+            spinBtn.classList.add('opacity-50', 'cursor-wait');
+            crazyBtn.classList.add('opacity-50', 'cursor-wait');
+            rouletteDisplay.classList.remove('text-neon', 'text-crazy1', 'text-vintage', 'text-vhs', 'vhs-standby-text');
+            
+            if (blindBoxMode) { vhsOverlay.classList.add('vhs-noise-active'); } 
+            else { rouletteDisplay.classList.add('text-white'); }
+
+            let duration = isCrazyMode ? 3000 : 2200; 
+            if (blindBoxMode) duration += 1000; 
+            let interval = 40;   
+            let elapsed = 0;
+
+            const cycle = setInterval(() => {
+                playSpinSound(200 + (Math.random() * 100));
+                if (!blindBoxMode) {
+                    const randomMovie = pool[Math.floor(Math.random() * pool.length)];
+                    rouletteDisplay.innerText = randomMovie._CoreTitle;
+                }
+                elapsed += interval;
+                if (elapsed > duration - 600) interval += 25; 
+
+                if (elapsed >= duration) {
+                    clearInterval(cycle);
+                    playWinSound(); 
+                    const finalMovie = pool[Math.floor(Math.random() * pool.length)];
+                    finishSpin(finalMovie, isCrazyMode);
+                }
+            }, interval);
+        }
+
+        async function finishSpin(movie, isCrazyMode) {
+            isSpinning = false;
+            spinBtn.classList.remove('opacity-50', 'cursor-wait');
+            crazyBtn.classList.remove('opacity-50', 'cursor-wait');
+            vhsOverlay.classList.remove('vhs-noise-active');
+            
+            rouletteDisplay.innerText = movie._CoreTitle;
+            rouletteDisplay.classList.remove('text-white');
+            
+            const modalSuperTitle = document.getElementById('modal-super-title');
+            const modalAccentLine = document.getElementById('modal-accent-line');
+
+            if (blindBoxMode) {
+                rouletteDisplay.classList.add('text-vhs');
+                modalAccentLine.className = "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-vhs";
+                modalSuperTitle.className = "text-vhs text-xs font-bold tracking-[0.3em] uppercase mb-4";
+                modalSuperTitle.innerText = "VHS Ejected";
+            } else if (vintageMode) {
+                rouletteDisplay.classList.add('text-vintage');
+                modalAccentLine.className = "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-vintage to-amber-700";
+                modalSuperTitle.className = "text-vintage text-xs font-bold tracking-[0.3em] uppercase mb-4";
+                modalSuperTitle.innerText = "Selection Locked";
+            } else if (isCrazyMode) {
+                rouletteDisplay.classList.add('text-crazy1');
+                modalAccentLine.className = "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-crazy1 to-crazy2";
+                modalSuperTitle.className = "text-crazy1 text-xs font-bold tracking-[0.3em] uppercase mb-4";
+                modalSuperTitle.innerText = "Crazy Selection Locked";
+            } else {
+                rouletteDisplay.classList.add('text-neon');
+                modalAccentLine.className = "absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-neon to-highlight";
+                modalSuperTitle.className = "text-neon text-xs font-bold tracking-[0.3em] uppercase mb-4";
+                modalSuperTitle.innerText = "Selection Locked";
+            }
+
+            document.getElementById('winner-title').innerText = movie._CoreTitle;
+            const winnerYear = document.getElementById('winner-year');
+            if (movie._CoreYear) { winnerYear.innerText = movie._CoreYear; winnerYear.style.display = 'block'; } 
+            else { winnerYear.style.display = 'none'; }
+
+            const winnerMeta = document.getElementById('winner-meta');
+            winnerMeta.innerHTML = ''; 
+            
+            if (movie._CoreRuntime) {
+                const span = document.createElement('span');
+                span.className = 'text-neon font-medium font-mono text-sm bg-emerald-900/20 px-3 py-1 border border-neon/50 rounded';
+                span.innerText = `${movie._CoreRuntime} mins`;
+                winnerMeta.appendChild(span);
+            }
+
+            filterableColumns.forEach(colObj => {
+                if(movie[colObj.rawHeader]) {
+                    const span = document.createElement('span');
+                    span.className = 'text-slate-300 font-medium text-sm bg-slate-900 px-3 py-1 border border-slate-700 rounded';
+                    span.innerText = movie[colObj.rawHeader];
+                    winnerMeta.appendChild(span);
+                }
+            });
+            
+            const winnerLink = document.getElementById('winner-link');
+            if(colURL && movie[colURL]) { winnerLink.href = movie[colURL]; winnerLink.style.display = 'flex'; } 
+            else { winnerLink.style.display = 'none'; }
+
+            const winnerPosterContainer = document.getElementById('winner-poster-container');
+            const winnerPoster = document.getElementById('winner-poster');
+            
+            winnerPoster.src = "";
+            winnerPosterContainer.classList.add('hidden', 'opacity-0');
+
+            const winnerModal = document.getElementById('winner-modal');
+            const modalContent = document.getElementById('modal-content');
+            
+            winnerModal.classList.remove('opacity-0', 'pointer-events-none');
+            setTimeout(() => { modalContent.classList.remove('scale-95'); modalContent.classList.add('scale-100'); }, 10);
+
+            if (movie._CorePoster) {
+                winnerPoster.src = movie._CorePoster;
+                winnerPosterContainer.classList.remove('hidden');
+                setTimeout(() => winnerPosterContainer.classList.remove('opacity-0'), 100);
+            }
+        }
+
+        document.getElementById('close-modal').addEventListener('click', () => {
+            document.getElementById('modal-content').classList.remove('scale-100');
+            document.getElementById('modal-content').classList.add('scale-95');
+            document.getElementById('winner-modal').classList.add('opacity-0');
+            setTimeout(() => document.getElementById('winner-modal').classList.add('pointer-events-none'), 300);
+            if (blindBoxMode) {
+                rouletteDisplay.innerText = "[ STATIC SIGNAL ]";
+                rouletteDisplay.classList.add('vhs-standby-text');
+                rouletteDisplay.classList.remove('text-vhs');
+            }
+        });
+    </script>
+</body>
+</html>
