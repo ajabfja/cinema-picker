@@ -306,45 +306,65 @@
         const syncBtn = document.getElementById('sync-btn');
         const syncStatus = document.getElementById('sync-status');
 
-        // --- Username Account Sync ---
+        // --- Username Account Sync (Infinite Stream Mode) ---
         syncBtn.addEventListener('click', async () => {
             const user = lbUsername.value.trim();
             if (!user) return;
 
             syncStatus.style.display = 'block';
-            syncStatus.innerText = 'Connecting to Letterboxd...';
             syncBtn.disabled = true;
+            movies = []; // Clear old pool data sequence
+
+            let targetPage = 1;
+            let checkNext = true;
 
             try {
-                // Fetch basic watchlist from our secure proxy backend
-                const res = await fetch(`/api/fetch-watchlist?username=${encodeURIComponent(user)}`);
-                const data = await res.json();
+                // Loop infinitely page-by-page directly inside the user's browser window
+                while (checkNext) {
+                    syncStatus.innerText = `🔍 Gathering watchlist footprint: scanning page ${targetPage}...`;
+                    
+                    const res = await fetch(`/api/fetch-watchlist?username=${encodeURIComponent(user)}&page=${targetPage}`);
+                    const data = await res.json();
 
-                if (data.error) {
-                    syncStatus.innerText = `Error: ${data.error}`;
-                    syncBtn.disabled = false;
-                    return;
+                    if (data.error) {
+                        syncStatus.innerText = `Error: ${data.error}`;
+                        syncBtn.disabled = false;
+                        return;
+                    }
+
+                    if (data.movies && data.movies.length > 0) {
+                        // Adapt the incoming items into the active application catalog registry
+                        const freshBatch = data.movies.map(m => ({
+                            _CoreTitle: m.title,
+                            _CoreYear: m.year,
+                            Link: m.link,
+                            Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
+                            _CoreRuntime: 0, _CorePoster: null,
+                            _Loaded: false
+                        }));
+                        
+                        movies = [...movies, ...freshBatch];
+                        document.getElementById('movie-count').innerText = `${movies.length} Loaded`;
+                    }
+
+                    // Check if the backend signal found another page button link
+                    if (data.hasMore === true) {
+                        targetPage++;
+                    } else {
+                        checkNext = false; // Brakes engaged! We collected everything.
+                    }
                 }
 
-                // Initialize raw array elements
-                movies = data.movies.map(m => ({
-                    _CoreTitle: m.title,
-                    _CoreYear: m.year,
-                    Link: m.link,
-                    Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
-                    _CoreRuntime: 0, _CorePoster: null,
-                    _Loaded: false
-                }));
-
+                // Initialize the structural application filters now that full array registry is gathered
                 setupInterfaceAfterLoad();
                 
-                // Fire off the real-time background lookup orchestrator
+                // Fire off the background metadata details enricher loop tracker
                 syncedCount = 0;
                 isSyncingBackground = true;
                 enrichNextMovieInQueue();
 
             } catch (err) {
-                syncStatus.innerText = 'Failed connection to API endpoint.';
+                syncStatus.innerText = 'Critical interface connection disconnect token.';
                 syncBtn.disabled = false;
             }
         });
@@ -365,7 +385,6 @@
             syncStatus.innerText = `Syncing details: ${syncedCount}/${movies.length} films...`;
 
             try {
-                // IMPORTANT: Calling the backend script instead of TMDB directly
                 const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
                 if (detailRes.ok) {
                     const meta = await detailRes.json();
