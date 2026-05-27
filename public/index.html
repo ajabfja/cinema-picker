@@ -12,14 +12,10 @@
             theme: {
                 extend: {
                     colors: {
-                        dark: '#0a0a0a',
-                        darker: '#050505',
-                        neon: '#10b981', 
-                        highlight: '#3b82f6', 
-                        crazy1: '#c026d3', 
-                        crazy2: '#e11d48', 
-                        vintage: '#f59e0b',
-                        vhs: '#8b5cf6',
+                        dark: '#0a0a0a', darker: '#050505',
+                        neon: '#10b981', highlight: '#3b82f6', 
+                        crazy1: '#c026d3', crazy2: '#e11d48', 
+                        vintage: '#f59e0b', vhs: '#8b5cf6',
                     }
                 }
             }
@@ -28,21 +24,20 @@
     <style>
         body { background-color: #050505; color: #f8fafc; transition: filter 0.5s ease; }
         .glass-panel { background: rgba(10, 10, 10, 0.8); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.05); }
+        .drag-over { border-color: #10b981 !important; background-color: rgba(16, 185, 129, 0.05) !important; }
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .filter-chip input:checked + div { background-color: #064e3b; border-color: #10b981; color: #10b981; }
-        details > summary { list-style: none; }
-        details > summary::-webkit-details-marker { display: none; }
-        input[type="checkbox"].accent-neon { accent-color: #10b981; }
+        details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }
         input[type="range"].accent-neon { accent-color: #10b981; }
-        .hardware-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; will-change: scroll-position; transform: translateZ(0); }
+        .hardware-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; transform: translateZ(0); }
         .content-visibility-auto { content-visibility: auto; contain-intrinsic-size: 0 100px; }
 
-        /* --- Analog / Archival Aesthetic Classes --- */
+        /* Aesthetics */
         .kodak-mode { filter: sepia(35%) contrast(115%) saturate(125%) brightness(0.95); }
         .kodak-overlay { position: fixed; inset: 0; pointer-events: none; z-index: 9998; background: radial-gradient(circle at center, transparent 30%, rgba(50, 20, 0, 0.4) 100%), linear-gradient(rgba(255, 180, 80, 0.04), rgba(200, 100, 0, 0.08)); mix-blend-mode: multiply; }
         .film-grain { position: fixed; inset: 0; pointer-events: none; z-index: 9999; opacity: 0.14; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); mix-blend-mode: overlay; }
 
-        /* --- VHS Blind Box Classes --- */
+        /* VHS */
         .vhs-standby-text { color: transparent; text-shadow: 0 0 5px rgba(139, 92, 246, 0.8), 2px 0 2px rgba(255,0,0,0.5), -2px 0 2px rgba(0,255,255,0.5); animation: vhs-pulse 2s infinite alternate; }
         @keyframes vhs-pulse { 0% { opacity: 0.7; text-shadow: 0 0 5px rgba(139, 92, 246, 0.8), 2px 0 2px rgba(255,0,0,0.5), -2px 0 2px rgba(0,255,255,0.5); } 100% { opacity: 1; text-shadow: 0 0 8px rgba(139, 92, 246, 1), 4px 0 4px rgba(255,0,0,0.7), -4px 0 4px rgba(0,255,255,0.7); } }
         .vhs-noise-overlay { position: absolute; inset: 0; background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='2.5' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"); opacity: 0; pointer-events: none; mix-blend-mode: color-dodge; z-index: 20; transition: opacity 0.1s; }
@@ -63,7 +58,6 @@
         <h1 class="text-3xl font-bold tracking-widest uppercase text-transparent bg-clip-text bg-gradient-to-r from-neon to-highlight hidden md:block shrink-0">Cinema Picker</h1>
         <div class="flex flex-wrap items-center gap-2 md:gap-4 w-full md:w-auto justify-end">
             <button id="vhs-toggle" class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-vhs px-3 py-1.5 rounded-lg border border-slate-800 hover:border-vhs/50 bg-darker transition-all flex items-center gap-1.5">
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
                 Blind Box: OFF
             </button>
             <button id="vintage-toggle" class="text-[10px] md:text-xs font-bold uppercase tracking-widest text-slate-500 hover:text-vintage px-3 py-1.5 rounded-lg border border-slate-800 hover:border-vintage/50 bg-darker transition-all">35mm Mode: OFF</button>
@@ -77,19 +71,23 @@
     <main class="max-w-7xl w-full mx-auto grid grid-cols-1 xl:grid-cols-4 gap-8 flex-1 relative z-10">
         
         <div class="flex flex-col gap-6 xl:col-span-1">
-            <div class="glass-panel p-5 rounded-xl border border-slate-800 flex flex-col gap-3">
-                <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Sync Account</span>
+            
+            <div class="glass-panel p-5 rounded-xl border border-slate-800 flex flex-col gap-4 shadow-lg">
+                <h3 class="text-slate-300 font-bold tracking-widest uppercase text-sm border-b border-slate-800 pb-2">1. Extract Watchlist</h3>
                 <div class="flex gap-2">
-                    <input type="text" id="lb-username" placeholder="Letterboxd Username" class="flex-1 bg-darker border border-slate-800 rounded p-2.5 text-xs text-slate-200 focus:outline-none focus:border-highlight transition-colors placeholder:text-slate-600">
-                    <button id="sync-btn" class="bg-slate-900 border border-slate-700 hover:border-highlight text-slate-300 hover:text-white px-4 py-2 rounded text-xs font-bold transition-colors">Sync</button>
+                    <input type="text" id="lb-username-export" placeholder="Letterboxd Username" class="flex-1 bg-darker border border-slate-800 rounded p-2 text-xs text-slate-200 focus:outline-none focus:border-highlight transition-colors placeholder:text-slate-600">
+                    <button id="get-watchlist-btn" class="bg-highlight hover:bg-blue-500 text-white px-4 py-2 rounded text-xs font-bold transition-colors shadow-lg">Get</button>
                 </div>
-                <div id="sync-status" class="text-[11px] text-slate-500 font-mono hidden"></div>
-            </div>
+                <p class="text-[10px] text-slate-500 font-medium leading-relaxed">
+                    Clicking <strong>Get</strong> redirects to your Data Settings. Click <span class="text-slate-300">Export Your Data</span>, open the downloaded zip, and extract your <span class="text-neon font-bold">watchlist.csv</span> file.
+                </p>
 
-            <div id="drop-zone" class="glass-panel p-4 rounded-xl border border-dashed border-slate-800 flex flex-col items-center justify-center text-center cursor-pointer transition-colors hover:border-slate-700 group">
-                <input type="file" id="file-input" accept=".csv" class="hidden">
-                <div id="drop-zone-text" class="flex flex-col items-center pointer-events-none">
-                    <p class="text-slate-500 font-medium text-xs tracking-wide">Or backup drag-and-drop CSV file</p>
+                <h3 class="text-slate-300 font-bold tracking-widest uppercase text-sm border-b border-slate-800 pb-2 mt-2">2. Import & Enrich</h3>
+                <div id="drop-zone" class="bg-darker border-2 border-dashed border-slate-700 hover:border-neon flex flex-col items-center justify-center text-center cursor-pointer transition-all group p-6 rounded-lg relative overflow-hidden">
+                    <input type="file" id="file-input" accept=".csv" class="hidden">
+                    <svg class="w-10 h-10 text-slate-600 group-hover:text-neon mb-3 transition-colors relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                    <h4 class="text-slate-300 font-bold text-xs tracking-wide relative z-10">Drop CSV Here</h4>
+                    <div id="sync-status" class="text-[10px] text-neon font-mono mt-3 relative z-10 hidden w-full break-words"></div>
                 </div>
             </div>
 
@@ -113,6 +111,12 @@
                     </div>
                     <input type="range" id="time-slider" min="30" max="240" value="240" class="w-full accent-neon cursor-pointer">
                 </div>
+                
+                <button id="open-globe-btn" class="w-full bg-[#050505] border border-slate-800 hover:border-highlight text-slate-400 hover:text-highlight transition-colors py-3 rounded-lg text-xs uppercase tracking-widest font-bold mb-6 hidden flex items-center justify-center gap-2 group">
+                    <svg class="w-4 h-4 text-highlight group-hover:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Explore World Map
+                </button>
+
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Library Filters</h3>
                     <button id="clear-filters" class="text-[10px] text-slate-500 hover:text-neon uppercase tracking-wider hidden">Clear All</button>
@@ -130,11 +134,22 @@
             </div>
             <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-2">
                 <div class="col-span-full h-full flex flex-col items-center justify-center text-slate-700 gap-4">
-                    <p class="text-sm tracking-wide">Awaiting data sequence sync.</p>
+                    <p class="text-sm tracking-wide">Awaiting CSV configuration file.</p>
                 </div>
             </div>
         </div>
     </main>
+
+    <div id="globe-modal" class="fixed inset-0 bg-black/95 backdrop-blur-xl z-40 flex flex-col items-center justify-center opacity-0 pointer-events-none transition-all duration-500">
+        <div class="w-full max-w-6xl h-[80vh] relative flex items-center justify-center border border-slate-800 rounded-xl overflow-hidden shadow-[0_0_50px_rgba(16,185,129,0.05)] bg-[#030303]" id="globe-container"></div>
+        <div class="mt-8 flex gap-6 items-center w-full max-w-6xl justify-between px-4">
+            <div class="flex items-center gap-3">
+                <div class="w-3 h-3 rounded-full bg-highlight animate-pulse"></div>
+                <span id="globe-selection-text" class="text-slate-400 font-mono text-sm tracking-widest uppercase">Click a region to filter</span>
+            </div>
+            <button id="close-globe" class="text-slate-400 hover:text-white border border-slate-700 hover:border-slate-400 px-6 py-2 rounded uppercase tracking-wider text-xs transition-colors font-bold">Close Map</button>
+        </div>
+    </div>
 
     <div id="winner-modal" class="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center opacity-0 pointer-events-none transition-all duration-300">
         <div class="glass-panel p-1 rounded-xl max-w-lg w-full mx-4 transform scale-95 transition-transform duration-300" id="modal-content">
@@ -157,7 +172,7 @@
         let movies = [];
         let spinPool = []; 
         let isSpinning = false;
-        let colTitle = 'Title', colURL = 'Link', colYear = 'Year';
+        let colURL = 'Link';
         let filterableColumns = [
             { id: 'genre', rawHeader: 'Genre', uiLabel: 'Genre', isEra: false },
             { id: 'country', rawHeader: 'Country', uiLabel: 'Country', isEra: false },
@@ -181,150 +196,84 @@
         const rouletteDisplay = document.getElementById('roulette-display');
         const timeSlider = document.getElementById('time-slider');
         const timeDisplay = document.getElementById('time-display');
-        const lbUsername = document.getElementById('lb-username');
-        const syncBtn = document.getElementById('sync-btn');
         const syncStatus = document.getElementById('sync-status');
 
         // ==========================================
-        // NEW CLIENT-SIDE SCRAPER (Anti-Hang Version)
+        // 1. EXTRACT WATCHLIST BUTTON LOGIC
         // ==========================================
-        syncBtn.addEventListener('click', async () => {
-            const user = lbUsername.value.trim();
-            if (!user) return;
+        document.getElementById('get-watchlist-btn').addEventListener('click', () => {
+            const user = document.getElementById('lb-username-export').value.trim();
+            // Redirects to the Letterboxd Data Export page. 
+            // Letterboxd requires you to be logged into your own account to export data.
+            window.open('https://letterboxd.com/settings/data/', '_blank');
+        });
 
+        // ==========================================
+        // 2. CSV INGESTION & TMDB ENRICHMENT ENGINE
+        // ==========================================
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+
+        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+        dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) { fileInput.files = e.dataTransfer.files; processCSV(e.dataTransfer.files[0]); }
+        });
+        dropZone.addEventListener('click', () => fileInput.click());
+        fileInput.addEventListener('change', (e) => {
+            if(e.target.files.length) processCSV(e.target.files[0]);
+        });
+
+        function processCSV(file) {
             syncStatus.style.display = 'block';
-            syncBtn.disabled = true;
-            movies = []; 
+            syncStatus.innerText = 'Parsing basic CSV data...';
+            
+            Papa.parse(file, {
+                header: true, skipEmptyLines: true,
+                complete: function(results) {
+                    movies = results.data.map(row => ({
+                        _CoreTitle: row.Name || row.Title || '',
+                        _CoreYear: row.Year || '',
+                        Link: row.LetterboxdURI || row.URL || '',
+                        Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
+                        _CoreRuntime: 0, _CorePoster: null,
+                        _Loaded: false // <--- This triggers the TMDB background fetcher below!
+                    })).filter(m => m._CoreTitle !== '');
 
-            let targetPage = 1;
-            let checkNext = true;
-            const cleanUsername = user.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-
-            try {
-                while (checkNext) {
-                    syncStatus.innerText = `🔍 Attempting secure connection: bypassing block on page ${targetPage}...`;
-                    
-                    const targetUrl = `https://letterboxd.com/${cleanUsername}/watchlist/page/${targetPage}/`;
-                    
-                    // Use Codetabs proxy which is more stable than allorigins for raw HTML
-                    const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`;
-                    
-                    // Kill Switch: If it hangs for more than 8 seconds, abort the connection
-                    const controller = new AbortController();
-                    const timeoutId = setTimeout(() => controller.abort(), 8000);
-
-                    let res;
-                    try {
-                        res = await fetch(proxyUrl, { signal: controller.signal });
-                        clearTimeout(timeoutId);
-                    } catch (fetchErr) {
-                        clearTimeout(timeoutId);
-                        if (fetchErr.name === 'AbortError') {
-                            syncStatus.innerText = `Error: The connection timed out. Cloudflare is blocking the scanner.`;
-                        } else {
-                            syncStatus.innerText = `Error: Proxy connection failed.`;
-                        }
-                        syncBtn.disabled = false;
+                    if(movies.length === 0) {
+                        syncStatus.innerText = 'Error: No valid movies found in CSV.';
                         return;
                     }
 
-                    const htmlText = await res.text();
-
-                    // Failsafe: Did we hit a security wall instead of the watchlist?
-                    if (htmlText.includes('Cloudflare') || htmlText.includes('Enable JavaScript and cookies')) {
-                         syncStatus.innerText = `Error: Blocked by Letterboxd security wall. Please use CSV upload.`;
-                         syncBtn.disabled = false;
-                         return;
-                    }
-                    if (htmlText.includes('Page not found') || htmlText.includes('error-page')) {
-                        if (targetPage === 1) {
-                            syncStatus.innerText = `Error: Could not find public watchlist for "${cleanUsername}".`;
-                            syncBtn.disabled = false;
-                            return;
-                        }
-                        checkNext = false;
-                        break;
-                    }
-
-                    const items = [];
-                    const segments = htmlText.split('data-film-slug="');
-
-                    for (let i = 1; i < segments.length; i++) {
-                        const segment = segments[i];
-                        
-                        // Grab the explicit URL slug of the movie (e.g. "dune-part-two")
-                        const slugMatch = segment.match(/^([^"]+)"/);
-                        if (!slugMatch) continue;
-                        
-                        const slug = slugMatch[1];
-                        let title = "";
-
-                        // Fallback Parser: Look for alt text, but if it's missing due to lazy loading, format the slug!
-                        const altMatch = segment.match(/alt="([^"]+)"/);
-                        if (altMatch && altMatch[1].trim() !== '') {
-                            title = altMatch[1].trim();
-                        } else {
-                            // Turn "spider-man-into-the-spider-verse" -> "Spider Man Into The Spider Verse"
-                            title = slug.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                        }
-
-                        items.push({
-                            _CoreTitle: title,
-                            _CoreYear: '', // TMDB background API will figure out the year automatically
-                            Link: `https://letterboxd.com/film/${slug}/`,
-                            Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
-                            _CoreRuntime: 0, _CorePoster: null,
-                            _Loaded: false
-                        });
-                    }
-
-                    if (items.length > 0) {
-                        movies = [...movies, ...items];
-                        document.getElementById('movie-count').innerText = `${movies.length} Loaded`;
-                        
-                        if (htmlText.includes('class="next"') || htmlText.includes('class="next-page"')) {
-                            targetPage++;
-                        } else {
-                            checkNext = false; 
-                        }
-                    } else {
-                        checkNext = false; 
-                    }
+                    document.getElementById('movie-count').innerText = `${movies.length} Titles`;
+                    setupInterfaceAfterLoad();
+                    
+                    // Fire up the background TMDB engine!
+                    syncedCount = 0;
+                    isSyncingBackground = true;
+                    enrichNextMovieInQueue();
                 }
+            });
+        }
 
-                if (movies.length === 0) {
-                     syncStatus.innerText = `Error: Watchlist loaded, but 0 films extracted. Security walls blocked the data.`;
-                     syncBtn.disabled = false;
-                     return;
-                }
-
-                setupInterfaceAfterLoad();
-                syncedCount = 0;
-                isSyncingBackground = true;
-                enrichNextMovieInQueue();
-
-            } catch (err) {
-                console.error(err);
-                syncStatus.innerText = 'Critical system fault during extraction.';
-                syncBtn.disabled = false;
-            }
-        });
-
-        // Loop through movies sequentially to balance API lookups smoothly
+        // --- TMDB Background Enrichment Loop ---
         async function enrichNextMovieInQueue() {
             if (!isSyncingBackground) return;
 
             let target = movies.find(m => !m._Loaded);
             if (!target) {
-                syncStatus.innerText = '✓ All film payloads fully synchronized.';
+                syncStatus.innerText = '✓ TMDB Enrichment Complete. Library Fully Synced.';
                 isSyncingBackground = false;
-                syncBtn.disabled = false;
                 buildFiltersOptimized();
                 return;
             }
 
-            syncStatus.innerText = `Syncing details: ${syncedCount}/${movies.length} films...`;
+            syncStatus.innerText = `Fetching Posters & Metadata from TMDB: ${syncedCount}/${movies.length}...`;
+            
             try {
+                // Safely pings your Vercel backend -> TMDB without Cloudflare blocking you!
                 const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
                 if (detailRes.ok) {
                     const meta = await detailRes.json();
@@ -335,16 +284,18 @@
                     target._CoreRuntime = meta.runtime;
                     target._CorePoster = meta.poster;
                 }
-            } catch (e) { console.error(e); }
+            } catch (e) { console.error("TMDB Sync Error for", target._CoreTitle); }
 
             target._Loaded = true;
             syncedCount++;
 
+            // Update UI incrementally so filtering works instantly
             if (syncedCount % 10 === 0 || syncedCount === movies.length) {
                 buildFiltersOptimized();
                 recalibrateRuntimeSlider();
+                applyFilters();
             }
-            applyFilters();
+            
             setTimeout(enrichNextMovieInQueue, 250); 
         }
 
@@ -353,7 +304,7 @@
             document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('crazy-btn').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('runtime-filter-container').classList.remove('hidden');
-            document.getElementById('movie-count').innerText = `${movies.length} Records`;
+            document.getElementById('open-globe-btn').classList.remove('hidden');
             if(blindBoxMode) {
                 rouletteDisplay.innerText = "[ STATIC SIGNAL ]";
                 rouletteDisplay.classList.add('vhs-standby-text');
@@ -362,6 +313,7 @@
                 rouletteDisplay.classList.remove('text-slate-600');
                 rouletteDisplay.classList.add('text-neon');
             }
+            renderGrid(movies, 240);
         }
 
         function recalibrateRuntimeSlider() {
@@ -369,39 +321,7 @@
             if (maxRun > timeSlider.max) { timeSlider.max = maxRun; timeSlider.value = maxRun; }
         }
 
-        // Backup Drag & Drop file fallback loader
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        dropZone.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', (e) => {
-            if(e.target.files.length) {
-                Papa.parse(e.target.files[0], {
-                    header: true, skipEmptyLines: true,
-                    complete: function(results) {
-                        movies = results.data.map(row => ({
-                            _CoreTitle: row[Object.keys(row).find(k=>k.toLowerCase().includes('title')||k.toLowerCase().includes('name'))] || '',
-                            _CoreYear: row[Object.keys(row).find(k=>k.toLowerCase().includes('year'))] || '',
-                            Link: row[Object.keys(row).find(k=>k.toLowerCase().includes('link')||k.toLowerCase().includes('url'))] || '',
-                            Genre: row[Object.keys(row).find(k=>k.toLowerCase().includes('genre'))] || '',
-                            Country: row[Object.keys(row).find(k=>k.toLowerCase().includes('country'))] || '',
-                            Director: row[Object.keys(row).find(k=>k.toLowerCase().includes('director'))] || '',
-                            'Cinema Movement/Era': row[Object.keys(row).find(k=>k.toLowerCase().includes('era')||k.toLowerCase().includes('movement'))] || '',
-                            _CoreRuntime: parseInt(row.Runtime || row.Length) || 0,
-                            _CorePoster: row.Poster || null,
-                            _Loaded: true
-                        }));
-                        isSyncingBackground = false;
-                        syncStatus.style.display = 'none';
-                        setupInterfaceAfterLoad();
-                        buildFiltersOptimized();
-                        recalibrateRuntimeSlider();
-                        applyFilters();
-                    }
-                });
-            }
-        });
-
-        // --- Aesthetic Engine ---
+        // --- Aesthetics & Audio ---
         soundToggle.addEventListener('click', () => {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
@@ -422,8 +342,7 @@
 
         vhsToggle.addEventListener('click', () => {
             blindBoxMode = !blindBoxMode;
-            vhsToggle.innerHTML = blindBoxMode 
-                ? `Blind Box: ON` : `Blind Box: OFF`;
+            vhsToggle.innerHTML = blindBoxMode ? `Blind Box: ON` : `Blind Box: OFF`;
             vhsToggle.classList.toggle('text-vhs', blindBoxMode);
             vhsToggle.classList.toggle('bg-purple-900/30', blindBoxMode);
             if (blindBoxMode && movies.length > 0) {
@@ -446,7 +365,6 @@
             }
         }
 
-        // --- Simple Audio Generators ---
         function playSpinSound(frequency) {
             if (!soundEnabled || !audioCtx) return;
             const osc = audioCtx.createOscillator();
@@ -472,7 +390,75 @@
             osc.start(); osc.stop(audioCtx.currentTime + 0.8);
         }
 
-        // --- Filter Building & Sync ---
+        // --- Globe Setup ---
+        let myGlobe = null; let countriesGeo = null;
+        const globeModal = document.getElementById('globe-modal');
+        const openGlobeBtn = document.getElementById('open-globe-btn');
+        const closeGlobeBtn = document.getElementById('close-globe');
+        const globeSelectionText = document.getElementById('globe-selection-text');
+
+        fetch('https://raw.githubusercontent.com/vasturiano/globe.gl/master/example/datasets/ne_110m_admin_0_countries.geojson')
+            .then(res => res.json()).then(data => { countriesGeo = data; });
+
+        function initGlobe() {
+            if (myGlobe) return;
+            const container = document.getElementById('globe-container');
+            myGlobe = Globe()(container)
+                .globeImageUrl('https://unpkg.com/three-globe/example/img/earth-dark.jpg')
+                .bumpImageUrl('https://unpkg.com/three-globe/example/img/earth-topology.png')
+                .backgroundImageUrl('https://unpkg.com/three-globe/example/img/night-sky.png')
+                .showAtmosphere(true).atmosphereColor('#10b981').atmosphereAltitude(0.15)
+                .polygonsData(countriesGeo.features).polygonAltitude(0.01)
+                .polygonCapColor(() => 'rgba(20, 20, 20, 0.7)').polygonSideColor(() => 'rgba(16, 185, 129, 0.15)').polygonStrokeColor(() => '#064e3b')
+                .polygonLabel(({ properties: d }) => `<div class="bg-black/90 backdrop-blur border border-highlight text-highlight px-3 py-1.5 rounded text-xs font-mono uppercase tracking-wider shadow-xl">${d.ADMIN}</div>`)
+                .onPolygonHover(hoverD => {
+                    myGlobe.polygonAltitude(d => d === hoverD ? 0.06 : 0.01)
+                           .polygonCapColor(d => d === hoverD ? 'rgba(59, 130, 246, 0.8)' : 'rgba(20, 20, 20, 0.7)');
+                })
+                .onPolygonClick(({ properties: d }) => { handleGlobeClick(d.ADMIN); });
+            myGlobe.width(container.clientWidth).height(container.clientHeight);
+            myGlobe.controls().autoRotate = true; myGlobe.controls().autoRotateSpeed = 0.8;
+        }
+
+        const COUNTRY_ALIASES = {
+            "United States of America": ["USA", "US", "United States"],
+            "United Kingdom": ["UK", "Britain", "Great Britain"],
+            "South Korea": ["Korea", "Republic of Korea"],
+            "Russia": ["Soviet Union", "USSR", "Russian Federation"]
+        };
+
+        function handleGlobeClick(geoCountryName) {
+            const aliases = COUNTRY_ALIASES[geoCountryName] || [];
+            const searchTerms = [geoCountryName.toLowerCase(), ...aliases.map(a => a.toLowerCase())];
+            let matchedCSVVal = null;
+            const uniqueCSVVals = new Set();
+            movies.forEach(m => { if(m.Country) m.Country.split(',').forEach(v => uniqueCSVVals.add(v.trim())); });
+            
+            for (let v of uniqueCSVVals) {
+                if (searchTerms.some(term => v.toLowerCase() === term || v.toLowerCase().includes(term))) { matchedCSVVal = v; break; }
+            }
+            if (matchedCSVVal) {
+                globeSelectionText.innerText = `Matched: ${matchedCSVVal}`;
+                activeFilters['Country'] = [matchedCSVVal];
+                document.querySelectorAll('.filter-chip-input').forEach(cb => {
+                    if (cb.dataset.col === 'Country') cb.checked = (cb.value === matchedCSVVal);
+                });
+                document.getElementById('clear-filters').style.display = 'block';
+                applyFilters();
+                setTimeout(() => globeModal.classList.add('opacity-0', 'pointer-events-none'), 800);
+            } else {
+                globeSelectionText.innerText = `${geoCountryName} (No matched films)`;
+                setTimeout(() => globeSelectionText.innerText = "Click a region to filter", 1500);
+            }
+        }
+
+        openGlobeBtn.addEventListener('click', () => {
+            globeModal.classList.remove('opacity-0', 'pointer-events-none');
+            if (countriesGeo && !myGlobe) initGlobe();
+        });
+        closeGlobeBtn.addEventListener('click', () => globeModal.classList.add('opacity-0', 'pointer-events-none'));
+
+        // --- Filter Engine ---
         function escapeHTML(str) { return str.replace(/[&<>'"]/g, tag => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[tag])); }
 
         function buildFiltersOptimized() {
@@ -485,13 +471,15 @@
                 activeFilters[colObj.rawHeader] = []; 
                 const valsArray = Array.from(uniqueValues).filter(Boolean);
 
+                if(valsArray.length === 0) return;
+
                 let catHTML = `<details class="group bg-[#0a0a0a] rounded-lg border border-slate-800 open:pb-4 relative content-visibility-auto"><summary class="flex justify-between items-center p-4 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:bg-slate-900/50">${colObj.uiLabel}</summary><div class="p-4 pb-2">`;
                 catHTML += `<div class="flex flex-wrap gap-2">`;
                 valsArray.sort().forEach(val => { catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; });
                 catHTML += `</div></div></details>`;
                 filtersHTML += catHTML;
             });
-            dynamicFiltersContainer.innerHTML = filtersHTML;
+            dynamicFiltersContainer.innerHTML = filtersHTML || '<p class="text-slate-600 text-sm italic">Fetching filter data...</p>';
         }
 
         timeSlider.addEventListener('input', (e) => {
@@ -547,8 +535,8 @@
                 const isLockedOut = m._Loaded && m._CoreRuntime > 0 && m._CoreRuntime > sliderVal;
                 gridHTML += `
                     <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 ${isLockedOut ? 'time-locked' : ''}">
-                        <h3 class="font-bold text-xl text-slate-200 mb-4">${m._CoreTitle}</h3>
-                        <div class="bg-[#050505] rounded border border-slate-800/50 p-3">${infoHTML}</div>
+                        <h3 class="font-bold text-xl text-slate-200 mb-4">${m._CoreTitle} <span class="text-slate-500 font-mono text-sm ml-2">${m._CoreYear}</span></h3>
+                        <div class="bg-[#050505] rounded border border-slate-800/50 p-3">${infoHTML || '<span class="text-slate-700 text-xs italic">Syncing details...</span>'}</div>
                     </div>`;
             });
             document.getElementById('movie-grid').innerHTML = gridHTML;
@@ -583,11 +571,40 @@
         function finishSpin(movie) {
             isSpinning = false;
             document.getElementById('winner-title').innerText = movie._CoreTitle;
+            document.getElementById('winner-year').innerText = movie._CoreYear || '';
             document.getElementById('winner-modal').classList.remove('opacity-0', 'pointer-events-none');
+            
             const poster = document.getElementById('winner-poster');
             if (movie._CorePoster) {
                 poster.src = movie._CorePoster;
                 document.getElementById('winner-poster-container').classList.remove('hidden', 'opacity-0');
+            } else {
+                document.getElementById('winner-poster-container').classList.add('hidden', 'opacity-0');
+            }
+
+            const winnerMeta = document.getElementById('winner-meta');
+            winnerMeta.innerHTML = '';
+            if (movie._CoreRuntime) {
+                const span = document.createElement('span');
+                span.className = 'text-neon font-medium font-mono text-sm bg-emerald-900/20 px-3 py-1 border border-neon/50 rounded';
+                span.innerText = `${movie._CoreRuntime} mins`;
+                winnerMeta.appendChild(span);
+            }
+            filterableColumns.forEach(colObj => {
+                if(movie[colObj.rawHeader]) {
+                    const span = document.createElement('span');
+                    span.className = 'text-slate-300 font-medium text-sm bg-slate-900 px-3 py-1 border border-slate-700 rounded';
+                    span.innerText = movie[colObj.rawHeader];
+                    winnerMeta.appendChild(span);
+                }
+            });
+
+            const winnerLink = document.getElementById('winner-link');
+            if(movie[colURL]) { 
+                winnerLink.href = movie[colURL]; 
+                winnerLink.style.display = 'flex'; 
+            } else { 
+                winnerLink.style.display = 'none'; 
             }
         }
 
