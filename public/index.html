@@ -86,9 +86,18 @@
                 <h3 class="text-slate-300 font-bold tracking-widest uppercase text-sm border-b border-slate-800 pb-2 mt-2">2. Import & Enrich</h3>
                 <div id="drop-zone" class="bg-darker border-2 border-dashed border-slate-700 hover:border-neon flex flex-col items-center justify-center text-center cursor-pointer transition-all group p-6 rounded-lg relative overflow-hidden">
                     <input type="file" id="file-input" accept=".csv" class="hidden">
-                    <svg class="w-10 h-10 text-slate-600 group-hover:text-neon mb-3 transition-colors relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
-                    <h4 class="text-slate-300 font-bold text-xs tracking-wide relative z-10">Drop CSV Here</h4>
-                    <div id="sync-status" class="text-[10px] text-neon font-mono mt-3 relative z-10 hidden w-full break-words"></div>
+                    
+                    <div id="drop-zone-content" class="flex flex-col items-center w-full transition-opacity duration-300">
+                        <svg class="w-10 h-10 text-slate-600 group-hover:text-neon mb-3 transition-colors relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        <h4 class="text-slate-300 font-bold text-xs tracking-wide relative z-10">Drop CSV Here</h4>
+                    </div>
+
+                    <div id="progress-container" class="hidden w-full flex-col items-center gap-2 mt-2">
+                        <div class="w-full bg-slate-900 rounded-full h-2 mb-1 overflow-hidden border border-slate-800 shadow-inner">
+                            <div id="progress-bar" class="bg-neon h-2 rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_#10b981]" style="width: 0%"></div>
+                        </div>
+                        <p id="progress-text" class="text-[10px] text-slate-400 font-mono text-center leading-tight"></p>
+                    </div>
                 </div>
             </div>
 
@@ -99,13 +108,13 @@
                     <p id="roulette-display" class="text-lg font-bold text-slate-600 text-center tracking-wide leading-tight px-2 relative z-10">Standby</p>
                 </div>
                 <div class="flex gap-3">
-                    <button id="spin-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg border border-slate-700 hover:border-neon transition-colors flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">Spin Filtered</button>
-                    <button id="crazy-btn" class="flex-1 bg-gradient-to-br from-crazy1 to-crazy2 hover:from-purple-500 hover:to-pink-500 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">Go Crazy</button>
+                    <button id="spin-btn" disabled class="flex-1 bg-slate-800 hover:bg-slate-700 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg border border-slate-700 hover:border-neon transition-colors flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">Spin Filtered</button>
+                    <button id="crazy-btn" disabled class="flex-1 bg-gradient-to-br from-crazy1 to-crazy2 hover:from-purple-500 hover:to-pink-500 text-white font-bold tracking-widest uppercase py-4 px-4 rounded-lg flex items-center justify-center gap-2 group opacity-50 cursor-not-allowed text-sm">Go Crazy</button>
                 </div>
             </div>
 
             <div class="glass-panel p-6 rounded-xl opacity-30 pointer-events-none transition-opacity duration-500 max-h-[70vh] overflow-y-auto hide-scrollbar hardware-scroll" id="controls-panel">
-                <div id="runtime-filter-container" class="hidden mb-6 bg-[#050505] p-4 rounded-lg border border-slate-800 shadow-inner">
+                <div id="runtime-filter-container" class="mb-6 bg-[#050505] p-4 rounded-lg border border-slate-800 shadow-inner">
                     <div class="flex justify-between items-center mb-3">
                         <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Time-to-Kill</span>
                         <span id="time-display" class="text-xs font-mono text-neon bg-emerald-900/20 px-2 py-0.5 rounded">Any</span>
@@ -113,7 +122,7 @@
                     <input type="range" id="time-slider" min="30" max="240" value="240" class="w-full accent-neon cursor-pointer">
                 </div>
                 
-                <button id="open-globe-btn" class="w-full bg-[#050505] border border-slate-800 hover:border-highlight text-slate-400 hover:text-highlight transition-colors py-3 rounded-lg text-xs uppercase tracking-widest font-bold mb-6 hidden flex items-center justify-center gap-2 group">
+                <button id="open-globe-btn" class="w-full bg-[#050505] border border-slate-800 hover:border-highlight text-slate-400 hover:text-highlight transition-colors py-3 rounded-lg text-xs uppercase tracking-widest font-bold mb-6 flex items-center justify-center gap-2 group">
                     <svg class="w-4 h-4 text-highlight group-hover:animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                     Explore World Map
                 </button>
@@ -123,7 +132,7 @@
                     <button id="clear-filters" class="text-[10px] text-slate-500 hover:text-neon uppercase tracking-wider hidden">Clear All</button>
                 </div>
                 <div id="dynamic-filters-container" class="flex flex-col gap-4">
-                    <p class="text-slate-600 text-sm italic">Filters will appear after sync.</p>
+                    <p class="text-slate-600 text-sm italic">Filters will appear after load.</p>
                 </div>
             </div>
         </div>
@@ -188,6 +197,17 @@
         let audioCtx;
         let soundEnabled = false;
 
+        // Progress Bar Fun Text
+        const loadingMessages = [
+            "Loading your watchlist, chill for now...",
+            "Go grab some popcorn 🍿...",
+            "Calling the director 🎬...",
+            "Developing the 35mm film 🎞️...",
+            "Bribing the projectionist 🎟️...",
+            "Bypassing the studio executives 🕴️...",
+            "Calibrating the silver screen 🎥..."
+        ];
+
         const soundToggle = document.getElementById('sound-toggle');
         const vintageToggle = document.getElementById('vintage-toggle');
         const vhsToggle = document.getElementById('vhs-toggle');
@@ -197,7 +217,6 @@
         const rouletteDisplay = document.getElementById('roulette-display');
         const timeSlider = document.getElementById('time-slider');
         const timeDisplay = document.getElementById('time-display');
-        const syncStatus = document.getElementById('sync-status');
 
         // ==========================================
         // 1. EXTRACT WATCHLIST URL LOGIC
@@ -216,6 +235,10 @@
         // ==========================================
         const dropZone = document.getElementById('drop-zone');
         const fileInput = document.getElementById('file-input');
+        const dropZoneContent = document.getElementById('drop-zone-content');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
 
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
@@ -230,9 +253,13 @@
         });
 
         function processCSV(file) {
-            syncStatus.style.display = 'block';
-            syncStatus.innerText = 'Parsing CSV...';
+            dropZoneContent.classList.add('hidden');
+            progressContainer.classList.remove('hidden');
+            progressContainer.classList.add('flex');
+            progressText.innerText = "Parsing CSV file...";
             
+            document.getElementById('movie-grid').innerHTML = '<div class="col-span-full h-full flex flex-col items-center justify-center text-slate-500 gap-4"><div class="w-8 h-8 border-4 border-neon border-t-transparent rounded-full animate-spin"></div><p class="text-sm font-bold tracking-widest uppercase">Connecting to TMDB Database</p><p class="text-xs opacity-70">Filters and library will unlock automatically when extraction is complete.</p></div>';
+
             Papa.parse(file, {
                 header: true, skipEmptyLines: true,
                 complete: function(results) {
@@ -243,18 +270,17 @@
                         Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
                         _CoreRuntime: 0, 
                         _CorePoster: null, // Optimization: Posters are kept null during background sync
-                        _Loaded: false // <--- Tells TMDB engine to fetch this!
+                        _Loaded: false
                     })).filter(m => m._CoreTitle !== '');
 
                     if(movies.length === 0) {
-                        syncStatus.innerText = 'Error: No valid movies found in CSV.';
+                        progressText.innerHTML = '<span class="text-red-500">Error: No valid movies found.</span>';
                         return;
                     }
 
-                    document.getElementById('movie-count').innerText = `${movies.length} Titles`;
-                    setupInterfaceAfterLoad();
+                    document.getElementById('movie-count').innerText = `${movies.length} Titles Detected`;
                     
-                    // Kick off the background metadata highway!
+                    // Kick off the 25-lane superhighway!
                     syncedCount = 0;
                     isSyncingBackground = true;
                     enrichBatch();
@@ -263,26 +289,29 @@
         }
 
         // ==========================================
-        // 3. MULTI-LANE TMDB BACKGROUND HIGHWAY (NO POSTERS)
+        // 3. 25-LANE TMDB SUPERHIGHWAY
         // ==========================================
         async function enrichBatch() {
             if (!isSyncingBackground) return;
 
-            // Grab the next 10 unloaded movies instead of just 1
-            let targets = movies.filter(m => !m._Loaded).slice(0, 10);
+            // Grab the next 25 unloaded movies (Massive speed upgrade)
+            let targets = movies.filter(m => !m._Loaded).slice(0, 25);
             
             if (targets.length === 0) {
-                syncStatus.innerHTML = '<span class="text-neon">✓ Metadata Engine Complete. Library Fully Synced.</span>';
+                // SUCCESS COMPLETION STATE
+                progressBar.style.width = '100%';
+                progressText.innerHTML = '<span class="text-neon font-bold tracking-widest">✓ LIBRARY UNLOCKED</span>';
                 isSyncingBackground = false;
-                buildFiltersOptimized();
+                
+                // Finally, build the UI and unlock the app!
+                setupInterfaceAfterLoad();
                 return;
             }
 
-            // Immediately mark them as loaded so the next batch doesn't accidentally grab them
+            // Lock targets immediately
             targets.forEach(t => t._Loaded = true);
-            syncStatus.innerHTML = `<span class="text-vintage animate-pulse">⚡ Fetching metadata (Posters Deferred): ${syncedCount}/${movies.length}... (You can spin now!)</span>`;
 
-            // Process all 10 requests concurrently 
+            // Fetch 25 simultaneously
             await Promise.all(targets.map(async (target) => {
                 try {
                     const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
@@ -293,31 +322,39 @@
                         target.Director = meta.director;
                         target['Cinema Movement/Era'] = meta.era;
                         target._CoreRuntime = meta.runtime;
-                        // OPTIMIZATION: We explicitly DO NOT assign target._CorePoster = meta.poster here. 
-                        // The browser downloads zero images during this background sync!
-                        target._CorePoster = meta.poster; // Wait, we store the URL string, but do not attach it to the DOM.
+                        target._CorePoster = meta.poster; // Stores URL string without downloading image payload
                     }
                 } catch (e) { console.error("TMDB Sync Error"); }
                 syncedCount++;
             }));
 
-            // Update UI smoothly in chunks so the browser doesn't lag
-            if (syncedCount % 50 === 0 || syncedCount === movies.length) {
-                buildFiltersOptimized();
-                recalibrateRuntimeSlider();
-                applyFilters();
-            }
+            // Update Progress Bar Mathematics
+            const percentComplete = Math.floor((syncedCount / movies.length) * 100);
+            progressBar.style.width = `${percentComplete}%`;
             
-            // Lightning fast 50ms pause between batches to protect the server
-            setTimeout(enrichBatch, 50); 
+            // Randomly cycle fun messages every few chunks so it doesn't flicker wildly
+            if (syncedCount % 100 === 0 || syncedCount === 25 || progressText.innerText === "Parsing CSV file...") {
+                const randomMsg = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
+                progressText.innerText = `${randomMsg} (${percentComplete}%)`;
+            }
+
+            // RECURSION: Immediately trigger next 25 with no timeout delays
+            enrichBatch(); 
         }
 
         function setupInterfaceAfterLoad() {
+            // Build DOM elements ONCE to prevent CPU choking during load
+            buildFiltersOptimized();
+            recalibrateRuntimeSlider();
+            applyFilters();
+
+            // Unlock the Vault Doors
             document.getElementById('controls-panel').classList.remove('opacity-30', 'pointer-events-none');
             document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
+            document.getElementById('spin-btn').disabled = false;
             document.getElementById('crazy-btn').classList.remove('opacity-50', 'cursor-not-allowed');
-            document.getElementById('runtime-filter-container').classList.remove('hidden');
-            document.getElementById('open-globe-btn').classList.remove('hidden');
+            document.getElementById('crazy-btn').disabled = false;
+            
             if(blindBoxMode) {
                 rouletteDisplay.innerText = "[ STATIC SIGNAL ]";
                 rouletteDisplay.classList.add('vhs-standby-text');
@@ -326,7 +363,6 @@
                 rouletteDisplay.classList.remove('text-slate-600');
                 rouletteDisplay.classList.add('text-neon');
             }
-            renderGrid(movies, 240);
         }
 
         function recalibrateRuntimeSlider() {
