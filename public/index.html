@@ -237,10 +237,30 @@
             const user = document.getElementById('lb-username-export').value.trim();
             const cleanUsername = user.toLowerCase().replace(/[^a-z0-9_-]/g, '');
             if (cleanUsername) {
-                // Takes the user directly to their public watchlist grid!
                 window.open(`https://letterboxd.com/${cleanUsername}/watchlist/`, '_blank');
             }
         });
+
+        // ==========================================
+        // DYNAMIC ERA CALCULATOR (TMDB Fallback)
+        // ==========================================
+        function deriveEra(yearStr) {
+            if (!yearStr) return 'Unclassified';
+            const y = parseInt(yearStr);
+            if (isNaN(y)) return 'Unclassified';
+            if (y < 1930) return 'Silent Era & Early Cinema (Pre-1930)';
+            if (y >= 1930 && y < 1940) return 'The 30s: Golden Age & Pre-Code';
+            if (y >= 1940 && y < 1950) return 'The 40s: WWII & Noir';
+            if (y >= 1950 && y < 1960) return 'The 50s: Post-War & Studio Era';
+            if (y >= 1960 && y < 1970) return 'The 60s: New Waves & Counterculture';
+            if (y >= 1970 && y < 1980) return 'The 70s: New Hollywood & Grit';
+            if (y >= 1980 && y < 1990) return 'The 80s: Blockbuster Boom';
+            if (y >= 1990 && y < 2000) return 'The 90s: Indie Revolution';
+            if (y >= 2000 && y < 2010) return 'The 2000s: Digital Transition';
+            if (y >= 2010 && y < 2020) return 'The 2010s: Streaming & Spectacle';
+            if (y >= 2020) return 'The 2020s: Contemporary Era';
+            return 'Unclassified';
+        }
 
         // ==========================================
         // 2. MASSIVE CSV INGESTION ENGINE
@@ -346,11 +366,18 @@
                         target.Genre = meta.genres;
                         target.Country = meta.countries;
                         target.Director = meta.director;
-                        target['Cinema Movement/Era'] = meta.era;
+                        // Inject TMDB era if it exists, otherwise generate it natively based on the year!
+                        target['Cinema Movement/Era'] = meta.era || deriveEra(target._CoreYear);
                         target._CoreRuntime = meta.runtime;
                         target._CorePoster = meta.poster; 
+                    } else {
+                        // Fallback Era if API fails
+                        target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
                     }
-                } catch (e) { console.error("TMDB Sync Error"); }
+                } catch (e) { 
+                    console.error("TMDB Sync Error"); 
+                    target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
+                }
                 syncedCount++;
             }));
 
@@ -505,7 +532,7 @@
             const searchTerms = [geoCountryName.toLowerCase(), ...aliases.map(a => a.toLowerCase())];
             let matchedCSVVal = null;
             const uniqueCSVVals = new Set();
-            movies.forEach(m => { if(m.Country) m.Country.split(',').forEach(v => uniqueCSVVals.add(v.trim())); });
+            movies.forEach(m => { if(m.Country) m.Country.split(/[,/|\\]/).forEach(v => uniqueCSVVals.add(v.trim())); });
             
             for (let v of uniqueCSVVals) {
                 if (searchTerms.some(term => v.toLowerCase() === term || v.toLowerCase().includes(term))) { matchedCSVVal = v; break; }
@@ -540,7 +567,16 @@
             let filtersHTML = '';
             filterableColumns.forEach(colObj => {
                 const uniqueValues = new Set();
-                movies.forEach(m => { if(m[colObj.rawHeader]) m[colObj.rawHeader].split(',').forEach(val => uniqueValues.add(val.trim())); });
+                
+                // CRITICAL FIX: Splitting dynamically by commas, slashes, or pipes so "Adventure/Comedy" becomes two checkboxes!
+                movies.forEach(m => { 
+                    if(m[colObj.rawHeader]) {
+                        m[colObj.rawHeader].split(/[,/|\\]/).forEach(val => {
+                            const cleanVal = val.trim();
+                            if(cleanVal) uniqueValues.add(cleanVal);
+                        }); 
+                    }
+                });
                 activeFilters[colObj.rawHeader] = []; 
                 const valsArray = Array.from(uniqueValues).filter(Boolean);
 
@@ -582,8 +618,11 @@
                     const selectedVals = activeFilters[colObj.rawHeader];
                     if (selectedVals && selectedVals.length > 0) {
                         if (!m[colObj.rawHeader]) return false; 
-                        const movieVals = m[colObj.rawHeader].split(',').map(v => v.trim());
-                        if (!selectedVals.some(sv => movieVals.includes(sv))) return false;
+                        
+                        // Apply the same robust splitting during the actual filtering check
+                        const movieVals = m[colObj.rawHeader].split(/[,/|\\]/).map(v => v.trim().toLowerCase());
+                        
+                        if (!selectedVals.some(sv => movieVals.includes(sv.toLowerCase()))) return false;
                     }
                 }
                 return true;
