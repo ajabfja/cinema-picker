@@ -301,70 +301,102 @@
         const timeSlider = document.getElementById('time-slider');
         const timeDisplay = document.getElementById('time-display');
 
-        // Username Elements
         const lbUsername = document.getElementById('lb-username');
         const syncBtn = document.getElementById('sync-btn');
         const syncStatus = document.getElementById('sync-status');
 
-        // --- Username Account Sync (Infinite Stream Mode) ---
+        // --- NEW CLIENT-SIDE SCRAPER (Bypasses Vercel/Cloudflare blocks) ---
         syncBtn.addEventListener('click', async () => {
             const user = lbUsername.value.trim();
             if (!user) return;
 
             syncStatus.style.display = 'block';
             syncBtn.disabled = true;
-            movies = []; // Clear old pool data sequence
+            movies = []; 
 
             let targetPage = 1;
             let checkNext = true;
+            const cleanUsername = user.toLowerCase().replace(/[^a-z0-9_-]/g, '');
 
             try {
-                // Loop infinitely page-by-page directly inside the user's browser window
                 while (checkNext) {
-                    syncStatus.innerText = `🔍 Gathering watchlist footprint: scanning page ${targetPage}...`;
+                    syncStatus.innerText = `🔍 Bypassing blocks: extracting page ${targetPage}...`;
                     
-                    const res = await fetch(`/api/fetch-watchlist?username=${encodeURIComponent(user)}&page=${targetPage}`);
-                    const data = await res.json();
+                    const targetUrl = `https://letterboxd.com/${cleanUsername}/watchlist/page/${targetPage}/`;
+                    
+                    // We route the request through a public CORS proxy so it looks like a normal browser connection
+                    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+                    
+                    const res = await fetch(proxyUrl);
+                    const proxyData = await res.json();
+                    const htmlText = proxyData.contents;
 
-                    if (data.error) {
-                        syncStatus.innerText = `Error: ${data.error}`;
-                        syncBtn.disabled = false;
-                        return;
+                    // If Letterboxd throws a 404 internally, kill the loop
+                    if (!htmlText || htmlText.includes('Page not found') || htmlText.includes('error-page')) {
+                        if (targetPage === 1) {
+                            syncStatus.innerText = `Error: Could not find public watchlist for "${cleanUsername}".`;
+                            syncBtn.disabled = false;
+                            return;
+                        }
+                        checkNext = false;
+                        break;
                     }
 
-                    if (data.movies && data.movies.length > 0) {
-                        // Adapt the incoming items into the active application catalog registry
-                        const freshBatch = data.movies.map(m => ({
-                            _CoreTitle: m.title,
-                            _CoreYear: m.year,
-                            Link: m.link,
-                            Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
-                            _CoreRuntime: 0, _CorePoster: null,
-                            _Loaded: false
-                        }));
+                    const items = [];
+                    // Extract data directly from HTML tags
+                    const segments = htmlText.split('data-film-slug="');
+
+                    for (let i = 1; i < segments.length; i++) {
+                        const segment = segments[i];
+                        const slugMatch = segment.match(/^([\s\S]*?)"/);
+                        const altMatch = segment.match(/alt="([^"]+)"/);
                         
-                        movies = [...movies, ...freshBatch];
-                        document.getElementById('movie-count').innerText = `${movies.length} Loaded`;
+                        if (altMatch) {
+                            const fullSlug = slugMatch ? slugMatch[1] : '';
+                            const title = altMatch[1].trim();
+                            const yearMatch = fullSlug.match(/-(\d{4})\/?$/);
+                            const year = yearMatch ? yearMatch[1] : '';
+                            
+                            items.push({
+                                _CoreTitle: title,
+                                _CoreYear: year,
+                                Link: `https://letterboxd.com${fullSlug}`,
+                                Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
+                                _CoreRuntime: 0, _CorePoster: null,
+                                _Loaded: false
+                            });
+                        }
                     }
 
-                   // Check if the backend signal found another page AND we actually found movies
-if (data.hasMore === true && data.movies && data.movies.length > 0) {
-    targetPage++;
-} else {
-    checkNext = false; // Brakes engaged! We hit the empty ghost pages.
-}
+                    if (items.length > 0) {
+                        movies = [...movies, ...items];
+                        document.getElementById('movie-count').innerText = `${movies.length} Loaded`;
+                        
+                        // Check if the HTML code has a "Next Page" button indicating more movies
+                        if (htmlText.includes('class="next"') || htmlText.includes('class="next-page"')) {
+                            targetPage++;
+                        } else {
+                            checkNext = false; // Real end of watchlist reached
+                        }
+                    } else {
+                        checkNext = false; // Blank page failsafe
+                    }
                 }
 
-                // Initialize the structural application filters now that full array registry is gathered
+                if (movies.length === 0) {
+                     syncStatus.innerText = `Error: Watchlist accessed, but 0 films found.`;
+                     syncBtn.disabled = false;
+                     return;
+                }
+
                 setupInterfaceAfterLoad();
-                
-                // Fire off the background metadata details enricher loop tracker
                 syncedCount = 0;
                 isSyncingBackground = true;
                 enrichNextMovieInQueue();
 
             } catch (err) {
-                syncStatus.innerText = 'Critical interface connection disconnect token.';
+                console.error(err);
+                syncStatus.innerText = 'Critical proxy connection disconnect.';
                 syncBtn.disabled = false;
             }
         });
@@ -385,6 +417,7 @@ if (data.hasMore === true && data.movies && data.movies.length > 0) {
             syncStatus.innerText = `Syncing details: ${syncedCount}/${movies.length} films...`;
 
             try {
+                // Background details engine still uses Vercel since TMDB allows server access
                 const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
                 if (detailRes.ok) {
                     const meta = await detailRes.json();
@@ -400,7 +433,6 @@ if (data.hasMore === true && data.movies && data.movies.length > 0) {
             target._Loaded = true;
             syncedCount++;
 
-            // Every 10 movies, rebuild filter menu UI incrementally so they can start playing early
             if (syncedCount % 10 === 0 || syncedCount === movies.length) {
                 buildFiltersOptimized();
                 recalibrateRuntimeSlider();
