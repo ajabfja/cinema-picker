@@ -108,6 +108,10 @@
                         <span id="time-display" class="text-xs font-mono text-neon bg-emerald-900/20 px-2 py-0.5 rounded">Any</span>
                     </div>
                     <input type="range" id="time-slider" min="30" max="240" value="240" class="w-full accent-neon cursor-pointer">
+                    <div class="flex justify-between text-[9px] text-slate-600 mt-2 font-mono">
+                        <span id="time-min-label">Min</span>
+                        <span id="time-max-label">Max</span>
+                    </div>
                 </div>
                 
                 <button id="open-globe-btn" class="w-full bg-[#050505] border border-slate-800 hover:border-highlight text-slate-400 hover:text-highlight transition-colors py-3 rounded-lg text-xs uppercase tracking-widest font-bold mb-6 flex items-center justify-center gap-2 group">
@@ -242,7 +246,7 @@
         });
 
         // ==========================================
-        // DYNAMIC ERA CALCULATOR (TMDB Fallback)
+        // DYNAMIC ERA CALCULATOR (Historian Engine)
         // ==========================================
         function deriveEra(yearStr) {
             if (!yearStr) return 'Unclassified';
@@ -260,6 +264,23 @@
             if (y >= 2010 && y < 2020) return 'The 2010s: Streaming & Spectacle';
             if (y >= 2020) return 'The 2020s: Contemporary Era';
             return 'Unclassified';
+        }
+
+        function getMasterEra(eraName) {
+            const name = eraName.toLowerCase();
+            if (name.includes('pre-1930') || name.includes('30s') || name.includes('40s') || name.includes('50s') || name.includes('golden age') || name.includes('silent')) {
+                return "Early & Classic Cinema (Pre-1960)";
+            }
+            if (name.includes('60s') || name.includes('70s') || name.includes('new wave')) {
+                return "The New Waves & Auteurs (1960s-1970s)";
+            }
+            if (name.includes('80s') || name.includes('90s') || name.includes('blockbuster')) {
+                return "Blockbuster & Indie Boom (1980s-1990s)";
+            }
+            if (name.includes('2000s') || name.includes('2010s') || name.includes('2020s') || name.includes('digital') || name.includes('streaming')) {
+                return "Modern & Contemporary (2000s-Present)";
+            }
+            return "Other Cinema Movements"; 
         }
 
         // ==========================================
@@ -286,7 +307,7 @@
         });
 
         function processCSV(file) {
-            dropZone.classList.add('hidden'); // Hide the drop zone
+            dropZone.classList.add('hidden'); 
             
             progressContainer.classList.remove('hidden');
             progressContainer.classList.add('flex');
@@ -297,7 +318,6 @@
                 header: true, skipEmptyLines: true,
                 complete: function(results) {
                     movies = results.data.map(row => {
-                        // Highly aggressive URL locator to find the Letterboxd link
                         let urlVal = '';
                         for (let key in row) {
                             if (key.toLowerCase().includes('uri') || key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) {
@@ -309,7 +329,7 @@
                         return {
                             _CoreTitle: row.Name || row.Title || '',
                             _CoreYear: row.Year || '',
-                            Link: urlVal, // The extracted Link
+                            Link: urlVal, 
                             Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
                             _CoreRuntime: 0, 
                             _CorePoster: null, 
@@ -366,16 +386,13 @@
                         target.Genre = meta.genres;
                         target.Country = meta.countries;
                         target.Director = meta.director;
-                        // Inject TMDB era if it exists, otherwise generate it natively based on the year!
                         target['Cinema Movement/Era'] = meta.era || deriveEra(target._CoreYear);
                         target._CoreRuntime = meta.runtime;
                         target._CorePoster = meta.poster; 
                     } else {
-                        // Fallback Era if API fails
                         target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
                     }
                 } catch (e) { 
-                    console.error("TMDB Sync Error"); 
                     target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
                 }
                 syncedCount++;
@@ -416,10 +433,27 @@
             }
         }
 
+        // --- Dynamic Runtime Slider ---
         function recalibrateRuntimeSlider() {
-            let maxRun = Math.max(...movies.map(m => m._CoreRuntime || 0));
-            if (maxRun > timeSlider.max) { timeSlider.max = maxRun; timeSlider.value = maxRun; }
+            let runtimes = movies.map(m => m._CoreRuntime || 0).filter(r => r > 0);
+            if(runtimes.length === 0) return;
+            
+            let minRun = Math.min(...runtimes);
+            let maxRun = Math.max(...runtimes);
+            
+            timeSlider.min = minRun > 0 ? minRun : 1;
+            timeSlider.max = maxRun;
+            timeSlider.value = maxRun;
+            
+            timeDisplay.innerText = "Any";
+            document.getElementById('time-min-label').innerText = `${timeSlider.min}m`;
+            document.getElementById('time-max-label').innerText = `Any`;
         }
+
+        timeSlider.addEventListener('input', (e) => {
+            timeDisplay.innerText = e.target.value == timeSlider.max ? "Any" : `< ${e.target.value}m`;
+            applyFilters();
+        });
 
         // --- Aesthetics & Audio ---
         soundToggle.addEventListener('click', () => {
@@ -565,10 +599,11 @@
             const dynamicFiltersContainer = document.getElementById('dynamic-filters-container');
             if (filterableColumns.length === 0) return;
             let filtersHTML = '';
+            
             filterableColumns.forEach(colObj => {
                 const uniqueValues = new Set();
                 
-                // CRITICAL FIX: Splitting dynamically by commas, slashes, or pipes so "Adventure/Comedy" becomes two checkboxes!
+                // Aggressive Splitting for "Adventure/Comedy" -> "Adventure", "Comedy"
                 movies.forEach(m => { 
                     if(m[colObj.rawHeader]) {
                         m[colObj.rawHeader].split(/[,/|\\]/).forEach(val => {
@@ -582,31 +617,84 @@
 
                 if(valsArray.length === 0) return;
 
-                let catHTML = `<details class="group bg-[#0a0a0a] rounded-lg border border-slate-800 open:pb-4 relative content-visibility-auto"><summary class="flex justify-between items-center p-4 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:bg-slate-900/50">${colObj.uiLabel}</summary><div class="p-4 pb-2">`;
-                catHTML += `<div class="flex flex-wrap gap-2">`;
-                valsArray.sort().forEach(val => { catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; });
-                catHTML += `</div></div></details>`;
+                let catHTML = `<details class="group bg-[#0a0a0a] rounded-lg border border-slate-800 open:pb-4 relative content-visibility-auto"><summary class="flex justify-between items-center p-4 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:bg-slate-900/50">${colObj.uiLabel} <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary><div class="p-4 pb-2 relative">`;
+
+                // Add Search Bar to everything except the pre-structured Eras
+                if (!colObj.isEra) {
+                    catHTML += `<div class="mb-4 sticky top-0 bg-[#0a0a0a] z-10 pb-3 border-b border-slate-800/80 -mt-2 pt-2">
+                        <input type="text" placeholder="Search ${colObj.uiLabel}..." class="w-full bg-[#050505] border border-slate-700 rounded p-2 text-xs text-slate-300 focus:outline-none focus:border-neon category-search transition-colors placeholder:text-slate-600">
+                    </div><div class="flex flex-wrap gap-2">`;
+                    
+                    valsArray.sort().forEach(val => { 
+                        catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; 
+                    });
+                    catHTML += `</div>`;
+                } else {
+                    // Custom Hierarchy Renderer for Eras
+                    const groupedEras = {}; 
+                    valsArray.forEach(val => {
+                        const master = getMasterEra(val);
+                        if(!groupedEras[master]) groupedEras[master] = [];
+                        groupedEras[master].push(val);
+                    });
+
+                    Object.keys(groupedEras).sort((a, b) => (a.includes('Other')?1:b.includes('Other')?-1:a.localeCompare(b))).forEach(masterName => {
+                        catHTML += `<details class="mb-2 last:mb-0 master-block group/master bg-[#050505] rounded border border-slate-800/50 content-visibility-auto">
+                            <summary class="text-[11px] font-bold text-slate-300 uppercase tracking-widest p-3 cursor-pointer hover:bg-slate-900/50 transition-colors flex justify-between items-center rounded">
+                                <div class="flex items-center gap-3"><input type="checkbox" class="master-cb accent-neon w-3.5 h-3.5 cursor-pointer" onclick="event.stopPropagation()"><span>${masterName}</span></div>
+                                <svg class="w-3 h-3 transition-transform group-open/master:rotate-180 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                            </summary>
+                            <div class="flex flex-wrap gap-2 pl-3 pb-3 border-l-2 border-slate-800 ml-2 mt-2 px-3">`;
+                            
+                            groupedEras[masterName].sort().forEach(val => { 
+                                catHTML += `<label class="filter-chip cursor-pointer inline-flex"><input type="checkbox" data-col="${colObj.rawHeader}" value="${escapeHTML(val)}" class="hidden peer filter-chip-input"><div class="text-xs font-medium text-slate-400 bg-[#0a0a0a] border border-slate-700 rounded px-3 py-1.5 hover:bg-slate-800 break-words transition-colors">${escapeHTML(val)}</div></label>`; 
+                            });
+                        catHTML += `</div></details>`;
+                    });
+                }
+                
+                catHTML += `</div></details>`;
                 filtersHTML += catHTML;
             });
-            dynamicFiltersContainer.innerHTML = filtersHTML || '<p class="text-slate-600 text-sm italic">Fetching filter data...</p>';
+            dynamicFiltersContainer.innerHTML = filtersHTML || '<p class="text-slate-600 text-sm italic">No data found.</p>';
         }
 
-        timeSlider.addEventListener('input', (e) => {
-            timeDisplay.innerText = e.target.value == timeSlider.max ? "Any" : `< ${e.target.value}m`;
-            applyFilters();
+        // Live Search Bar Logic for Checkboxes
+        document.getElementById('dynamic-filters-container').addEventListener('input', (e) => {
+            if (e.target.matches('.category-search')) {
+                const term = e.target.value.toLowerCase();
+                const labels = e.target.closest('details').querySelectorAll('.filter-chip');
+                labels.forEach(label => {
+                    const text = label.textContent.toLowerCase();
+                    label.style.display = text.includes(term) ? 'inline-flex' : 'none';
+                });
+            }
         });
 
+        // Filter Checkbox Logic
         document.getElementById('dynamic-filters-container').addEventListener('change', (e) => {
-            if (e.target.matches('.filter-chip-input')) {
-                if(e.target.checked) activeFilters[e.target.dataset.col].push(e.target.value);
-                else activeFilters[e.target.dataset.col] = activeFilters[e.target.dataset.col].filter(v => v !== e.target.value);
+            if (e.target.matches('.filter-chip-input') || e.target.matches('.master-cb')) {
+                
+                if(e.target.matches('.master-cb')) {
+                    const isChecked = e.target.checked;
+                    const chips = e.target.closest('.master-block').querySelectorAll('.filter-chip-input');
+                    chips.forEach(cb => {
+                        cb.checked = isChecked;
+                        if(isChecked && !activeFilters[cb.dataset.col].includes(cb.value)) activeFilters[cb.dataset.col].push(cb.value);
+                        else if(!isChecked) activeFilters[cb.dataset.col] = activeFilters[cb.dataset.col].filter(v => v !== cb.value);
+                    });
+                } else if(e.target.matches('.filter-chip-input')){
+                    if(e.target.checked) activeFilters[e.target.dataset.col].push(e.target.value);
+                    else activeFilters[e.target.dataset.col] = activeFilters[e.target.dataset.col].filter(v => v !== e.target.value);
+                }
+
                 document.getElementById('clear-filters').style.display = Object.values(activeFilters).some(arr => arr.length > 0) ? 'block' : 'none';
                 applyFilters();
             }
         });
 
         document.getElementById('clear-filters').addEventListener('click', () => {
-            document.querySelectorAll('.filter-chip-input').forEach(cb => cb.checked = false);
+            document.querySelectorAll('.filter-chip-input, .master-cb').forEach(cb => cb.checked = false);
             Object.keys(activeFilters).forEach(key => activeFilters[key] = []);
             document.getElementById('clear-filters').style.display = 'none';
             applyFilters();
@@ -619,20 +707,22 @@
                     if (selectedVals && selectedVals.length > 0) {
                         if (!m[colObj.rawHeader]) return false; 
                         
-                        // Apply the same robust splitting during the actual filtering check
+                        // Treat "Adventure/Comedy" dynamically during filtering
                         const movieVals = m[colObj.rawHeader].split(/[,/|\\]/).map(v => v.trim().toLowerCase());
-                        
                         if (!selectedVals.some(sv => movieVals.includes(sv.toLowerCase()))) return false;
                     }
                 }
                 return true;
             });
+            
             const sliderVal = parseInt(timeSlider.value, 10);
-            spinPool = displayPool.filter(m => !m._Loaded || m._CoreRuntime === 0 || m._CoreRuntime <= sliderVal);
-            renderGrid(displayPool, sliderVal);
+            const isMax = sliderVal === parseInt(timeSlider.max, 10);
+            
+            spinPool = displayPool.filter(m => !m._Loaded || m._CoreRuntime === 0 || isMax || m._CoreRuntime <= sliderVal);
+            renderGrid(displayPool, sliderVal, isMax);
         }
 
-        function renderGrid(displayPool, sliderVal) {
+        function renderGrid(displayPool, sliderVal, isMax) {
             document.getElementById('filtered-count').innerText = `${spinPool.length} playable`;
             if(displayPool.length === 0) { 
                 document.getElementById('movie-grid').innerHTML = '<div class="col-span-full h-full flex items-center justify-center text-slate-600"><p class="text-sm">No matches found.</p></div>'; 
@@ -644,9 +734,9 @@
                 filterableColumns.forEach(colObj => {
                     if(m[colObj.rawHeader]) infoHTML += `<div class="flex flex-col mb-2 last:mb-0"><span class="text-[9px] uppercase tracking-widest text-slate-600">${colObj.uiLabel}</span><span class="text-sm text-slate-300 font-medium">${m[colObj.rawHeader]}</span></div>`;
                 });
-                const isLockedOut = m._Loaded && m._CoreRuntime > 0 && m._CoreRuntime > sliderVal;
                 
-                // ADDED LETTERBOXD LINK BUTTON DIRECTLY TO EVERY GRID CARD
+                const isLockedOut = m._Loaded && m._CoreRuntime > 0 && !isMax && m._CoreRuntime > sliderVal;
+                
                 gridHTML += `
                     <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 flex flex-col ${isLockedOut ? 'time-locked' : ''}">
                         <div class="flex-1">
@@ -721,7 +811,6 @@
                 }
             });
 
-            // ENSURE WINNER LINK & TRAILER BUTTONS WORK
             const winnerLink = document.getElementById('winner-link');
             if(movie.Link) { 
                 winnerLink.href = movie.Link; 
