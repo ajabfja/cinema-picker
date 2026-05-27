@@ -347,12 +347,12 @@
                         document.getElementById('movie-count').innerText = `${movies.length} Loaded`;
                     }
 
-                    // Check if the backend signal found another page button link
-                    if (data.hasMore === true) {
-                        targetPage++;
-                    } else {
-                        checkNext = false; // Brakes engaged! We collected everything.
-                    }
+                   // Check if the backend signal found another page AND we actually found movies
+if (data.hasMore === true && data.movies && data.movies.length > 0) {
+    targetPage++;
+} else {
+    checkNext = false; // Brakes engaged! We hit the empty ghost pages.
+}
                 }
 
                 // Initialize the structural application filters now that full array registry is gathered
