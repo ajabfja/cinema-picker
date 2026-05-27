@@ -91,13 +91,6 @@
                         <svg class="w-10 h-10 text-slate-600 group-hover:text-neon mb-3 transition-colors relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
                         <h4 class="text-slate-300 font-bold text-xs tracking-wide relative z-10">Drop CSV Here</h4>
                     </div>
-
-                    <div id="progress-container" class="hidden w-full flex-col items-center gap-2 mt-2">
-                        <div class="w-full bg-slate-900 rounded-full h-2 mb-1 overflow-hidden border border-slate-800 shadow-inner">
-                            <div id="progress-bar" class="bg-neon h-2 rounded-full transition-all duration-300 ease-out shadow-[0_0_10px_#10b981]" style="width: 0%"></div>
-                        </div>
-                        <p id="progress-text" class="text-[10px] text-slate-400 font-mono text-center leading-tight"></p>
-                    </div>
                 </div>
             </div>
 
@@ -137,12 +130,23 @@
             </div>
         </div>
 
-        <div class="xl:col-span-3 glass-panel p-6 rounded-xl flex flex-col h-[85vh]">
-            <div class="flex justify-between items-end mb-6 pb-4 border-b border-slate-800 shrink-0">
+        <div class="xl:col-span-3 glass-panel p-6 rounded-xl flex flex-col h-[85vh] relative overflow-hidden">
+            
+            <div id="progress-container" class="absolute inset-0 z-20 bg-[#050505]/95 backdrop-blur-md hidden flex-col items-center justify-center px-10 transition-opacity duration-500">
+                <div class="w-16 h-16 border-4 border-slate-800 border-t-neon rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(16,185,129,0.3)]"></div>
+                <h2 class="text-2xl md:text-3xl font-bold text-white tracking-widest uppercase text-center mb-6" id="progress-text">Loading your watchlist, chill for now...</h2>
+                <div class="w-full max-w-xl bg-slate-900 rounded-full h-4 overflow-hidden border border-slate-800 shadow-inner mb-2">
+                    <div id="progress-bar" class="bg-neon h-full rounded-full transition-all duration-300 ease-out shadow-[0_0_15px_#10b981]" style="width: 0%"></div>
+                </div>
+                <p class="text-slate-500 font-mono text-sm" id="progress-percentage">0% - Syncing with TMDB...</p>
+            </div>
+
+            <div class="flex justify-between items-end mb-6 pb-4 border-b border-slate-800 shrink-0 relative z-10">
                 <h2 class="text-lg font-semibold text-slate-300 tracking-wide">Director's Cut</h2>
                 <span id="filtered-count" class="text-neon text-sm font-mono bg-emerald-900/20 px-3 py-1 rounded">0 visible</span>
             </div>
-            <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-2">
+            
+            <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-2 relative z-10">
                 <div class="col-span-full h-full flex flex-col items-center justify-center text-slate-700 gap-4">
                     <p class="text-sm tracking-wide">Awaiting CSV configuration file.</p>
                 </div>
@@ -172,7 +176,12 @@
                 <h2 id="winner-title" class="text-4xl font-bold text-white mb-2 leading-tight tracking-tight relative z-10">Title</h2>
                 <p id="winner-year" class="text-slate-400 font-mono text-lg mb-6 tracking-widest relative z-10">Year</p>
                 <div id="winner-meta" class="flex flex-wrap justify-center gap-2 mb-8 relative z-10"></div>
-                <a id="winner-link" href="#" target="_blank" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-6 rounded transition-colors flex items-center justify-center gap-2 mb-4 group relative z-10">Open Link</a>
+                
+                <a id="winner-link" href="#" target="_blank" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-6 rounded transition-colors flex items-center justify-center gap-2 mb-4 group relative z-10">
+                    Open in Letterboxd
+                    <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                </a>
+
                 <button id="close-modal" class="text-slate-600 hover:text-slate-400 text-xs tracking-widest uppercase transition-colors mt-2 relative z-10">Dismiss</button>
             </div>
         </div>
@@ -197,13 +206,12 @@
         let audioCtx;
         let soundEnabled = false;
 
-        // Progress Bar Fun Text
+        // Progress Bar Cinematic Text Array
         const loadingMessages = [
             "Loading your watchlist, chill for now...",
-            "Go grab some popcorn 🍿...",
+            "Loading, go and grab popcorn 🍿...",
             "Calling the director 🎬...",
             "Developing the 35mm film 🎞️...",
-            "Bribing the projectionist 🎟️...",
             "Bypassing the studio executives 🕴️...",
             "Calibrating the silver screen 🎥..."
         ];
@@ -239,6 +247,7 @@
         const progressContainer = document.getElementById('progress-container');
         const progressBar = document.getElementById('progress-bar');
         const progressText = document.getElementById('progress-text');
+        const progressPercentage = document.getElementById('progress-percentage');
 
         dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
         dropZone.addEventListener('dragleave', () => { dropZone.classList.remove('drag-over'); });
@@ -253,13 +262,12 @@
         });
 
         function processCSV(file) {
-            dropZoneContent.classList.add('hidden');
+            // Activate the big loading overlay in the grid
             progressContainer.classList.remove('hidden');
             progressContainer.classList.add('flex');
-            progressText.innerText = "Parsing CSV file...";
+            progressText.innerText = loadingMessages[0];
+            progressPercentage.innerText = "0% - Preparing Database...";
             
-            document.getElementById('movie-grid').innerHTML = '<div class="col-span-full h-full flex flex-col items-center justify-center text-slate-500 gap-4"><div class="w-8 h-8 border-4 border-neon border-t-transparent rounded-full animate-spin"></div><p class="text-sm font-bold tracking-widest uppercase">Connecting to TMDB Database</p><p class="text-xs opacity-70">Filters and library will unlock automatically when extraction is complete.</p></div>';
-
             Papa.parse(file, {
                 header: true, skipEmptyLines: true,
                 complete: function(results) {
@@ -269,7 +277,7 @@
                         Link: row.LetterboxdURI || row.URL || '',
                         Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
                         _CoreRuntime: 0, 
-                        _CorePoster: null, // Optimization: Posters are kept null during background sync
+                        _CorePoster: null, // Posters are kept null during background sync
                         _Loaded: false
                     })).filter(m => m._CoreTitle !== '');
 
@@ -301,10 +309,18 @@
                 // SUCCESS COMPLETION STATE
                 progressBar.style.width = '100%';
                 progressText.innerHTML = '<span class="text-neon font-bold tracking-widest">✓ LIBRARY UNLOCKED</span>';
+                progressPercentage.innerText = "100% - Ready to Spin!";
                 isSyncingBackground = false;
                 
-                // Finally, build the UI and unlock the app!
-                setupInterfaceAfterLoad();
+                // Pause for half a second to let the user see "100%", then build UI
+                setTimeout(() => {
+                    progressContainer.classList.add('opacity-0'); // fade out overlay
+                    setTimeout(() => {
+                        progressContainer.classList.add('hidden');
+                        progressContainer.classList.remove('flex', 'opacity-0');
+                        setupInterfaceAfterLoad();
+                    }, 500);
+                }, 800);
                 return;
             }
 
@@ -331,11 +347,12 @@
             // Update Progress Bar Mathematics
             const percentComplete = Math.floor((syncedCount / movies.length) * 100);
             progressBar.style.width = `${percentComplete}%`;
+            progressPercentage.innerText = `${percentComplete}% - Syncing TMDB Metadata...`;
             
-            // Randomly cycle fun messages every few chunks so it doesn't flicker wildly
-            if (syncedCount % 100 === 0 || syncedCount === 25 || progressText.innerText === "Parsing CSV file...") {
+            // Randomly cycle fun messages every few chunks
+            if (syncedCount % 100 === 0 || syncedCount === 25) {
                 const randomMsg = loadingMessages[Math.floor(Math.random() * loadingMessages.length)];
-                progressText.innerText = `${randomMsg} (${percentComplete}%)`;
+                progressText.innerText = randomMsg;
             }
 
             // RECURSION: Immediately trigger next 25 with no timeout delays
@@ -582,10 +599,19 @@
                     if(m[colObj.rawHeader]) infoHTML += `<div class="flex flex-col mb-2 last:mb-0"><span class="text-[9px] uppercase tracking-widest text-slate-600">${colObj.uiLabel}</span><span class="text-sm text-slate-300 font-medium">${m[colObj.rawHeader]}</span></div>`;
                 });
                 const isLockedOut = m._Loaded && m._CoreRuntime > 0 && m._CoreRuntime > sliderVal;
+                
+                // ADDED LETTERBOXD LINK BUTTON DIRECTLY TO EVERY GRID CARD
                 gridHTML += `
-                    <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 ${isLockedOut ? 'time-locked' : ''}">
-                        <h3 class="font-bold text-xl text-slate-200 mb-4">${m._CoreTitle} <span class="text-slate-500 font-mono text-sm ml-2">${m._CoreYear}</span></h3>
-                        <div class="bg-[#050505] rounded border border-slate-800/50 p-3">${infoHTML || '<span class="text-slate-700 text-xs italic">Syncing details...</span>'}</div>
+                    <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 flex flex-col ${isLockedOut ? 'time-locked' : ''}">
+                        <div class="flex-1">
+                            <h3 class="font-bold text-xl text-slate-200 mb-4">${m._CoreTitle} <span class="text-slate-500 font-mono text-sm ml-2">${m._CoreYear}</span></h3>
+                            <div class="bg-[#050505] rounded border border-slate-800/50 p-3 mb-4">${infoHTML || '<span class="text-slate-700 text-xs italic">Syncing details...</span>'}</div>
+                        </div>
+                        ${m.Link ? `
+                        <a href="${m.Link}" target="_blank" class="text-slate-500 hover:text-highlight transition-colors flex items-center gap-1 text-xs uppercase tracking-wider font-bold mt-auto pt-3 border-t border-slate-800/50">
+                            Letterboxd <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        </a>
+                        ` : ''}
                     </div>`;
             });
             document.getElementById('movie-grid').innerHTML = gridHTML;
@@ -649,9 +675,10 @@
                 }
             });
 
+            // ENSURE WINNER LINK BUTTON WORKS
             const winnerLink = document.getElementById('winner-link');
-            if(movie[colURL]) { 
-                winnerLink.href = movie[colURL]; 
+            if(movie.Link) { 
+                winnerLink.href = movie.Link; 
                 winnerLink.style.display = 'flex'; 
             } else { 
                 winnerLink.style.display = 'none'; 
