@@ -1,12 +1,10 @@
 export default async function handler(req, res) {
-    // Enable cross-origin handshakes so your interface can read this stream safely
     res.setHeader('Access-Control-Allow-Origin', '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     if (req.method === 'OPTIONS') return res.status(200).end();
 
-    // The backend now looks for a specific "page" number sent from the browser
     const { username, page = 1 } = req.query;
     if (!username) return res.status(400).json({ error: 'Username parameter is required' });
 
@@ -23,7 +21,6 @@ export default async function handler(req, res) {
             }
         });
 
-        // If the page doesn't exist, it means we cleanly reached the absolute end of their watchlist
         if (!response.ok) {
             return res.status(200).json({ movies: [], hasMore: false });
         }
@@ -51,8 +48,11 @@ export default async function handler(req, res) {
             }
         }
 
-        // Clever Check: If the page has a "Next" button in the HTML structure, tell the browser to keep going
-        const hasMore = htmlText.includes('class="next"') || htmlText.includes('class="next-page"');
+        // EMERGENCY BRAKE: Only allow a 'next' page if THIS page actually contained movies.
+        let hasMore = false;
+        if (items.length > 0) {
+            hasMore = htmlText.includes('class="next"') || htmlText.includes('class="next-page"');
+        }
 
         return res.status(200).json({ movies: items, hasMore: hasMore });
     } catch (error) {
