@@ -82,11 +82,6 @@
                     Clicking <strong>Get</strong> redirects to your public watchlist.<br>
                     <span class="text-slate-400 block mt-1">To download your file:</span> Click the prominent <strong>Export Watchlist</strong> button on that page to instantly download your <span class="text-neon font-bold">watchlist.csv</span>.
                 </p>
-
-                <h3 class="text-slate-300 font-bold tracking-widest uppercase text-sm border-b border-slate-800 pb-2 mt-2">2. Import & Enrich</h3>
-                <p class="text-[11px] text-slate-400 font-medium leading-relaxed text-center py-2 bg-[#050505] rounded border border-slate-800">
-                    Drag and drop your downloaded CSV into the large <strong>Director's Cut</strong> window to the right! 👉
-                </p>
             </div>
 
             <div class="glass-panel p-6 rounded-xl">
@@ -132,14 +127,14 @@
                 <span id="filtered-count" class="text-neon text-sm font-mono bg-emerald-900/20 px-3 py-1 rounded">0 visible</span>
             </div>
 
-            <div id="drop-zone" class="absolute inset-0 z-30 flex flex-col items-center justify-center mt-20 mb-6 mx-6 p-10 border-4 border-dashed border-slate-700 hover:border-neon rounded-xl bg-[#080808]/80 cursor-pointer transition-all duration-300 group shadow-2xl">
+            <div id="drop-zone" class="absolute inset-0 z-30 flex flex-col items-center justify-center mt-20 mb-6 mx-6 p-10 border-4 border-dashed border-slate-700 hover:border-neon rounded-xl bg-[#080808]/80 cursor-pointer transition-all duration-300 group shadow-2xl backdrop-blur-sm">
                 <input type="file" id="file-input" accept=".csv" class="hidden">
                 <svg class="w-24 h-24 text-slate-600 group-hover:text-neon mb-6 transition-colors group-hover:scale-110 duration-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
                 <h3 class="text-white font-bold tracking-widest uppercase text-2xl md:text-3xl mb-4 text-center">Drop Watchlist.csv Here</h3>
                 <p class="text-slate-400 font-medium tracking-wide text-lg text-center">Or click anywhere in this box to browse files</p>
             </div>
 
-            <div id="progress-container" class="absolute inset-0 z-20 bg-[#050505]/95 backdrop-blur-md hidden flex-col items-center justify-center px-10 transition-opacity duration-500">
+            <div id="progress-container" class="absolute inset-0 z-20 bg-[#080808]/95 backdrop-blur-md hidden flex-col items-center justify-center px-10 transition-opacity duration-500 mt-20 mb-6 mx-6 rounded-xl border border-slate-800 shadow-2xl">
                 <div class="w-16 h-16 border-4 border-slate-800 border-t-neon rounded-full animate-spin mb-6 shadow-[0_0_15px_rgba(16,185,129,0.3)]"></div>
                 <h2 class="text-2xl md:text-3xl font-bold text-white tracking-widest uppercase text-center mb-6" id="progress-text">Loading your watchlist, chill for now...</h2>
                 <div class="w-full max-w-xl bg-slate-900 rounded-full h-4 overflow-hidden border border-slate-800 shadow-inner mb-2">
@@ -148,7 +143,7 @@
                 <p class="text-slate-500 font-mono text-sm" id="progress-percentage">0% - Syncing with TMDB...</p>
             </div>
             
-            <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 gap-4 content-start pr-2 relative z-10 opacity-0 pointer-events-none transition-opacity duration-500">
+            <div id="movie-grid" class="flex-1 overflow-y-auto hide-scrollbar hardware-scroll grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 content-start pr-2 relative z-10 opacity-0 pointer-events-none transition-opacity duration-500">
                 </div>
         </div>
     </main>
@@ -177,7 +172,7 @@
                 <div id="winner-meta" class="flex flex-wrap justify-center gap-2 mb-8 relative z-10"></div>
                 
                 <a id="winner-link" href="#" target="_blank" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-6 rounded transition-colors flex items-center justify-center gap-2 mb-4 group relative z-10">
-                    Open in Letterboxd
+                    Open on Letterboxd
                     <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                 </a>
 
@@ -231,7 +226,6 @@
             const user = document.getElementById('lb-username-export').value.trim();
             const cleanUsername = user.toLowerCase().replace(/[^a-z0-9_-]/g, '');
             if (cleanUsername) {
-                // Takes the user directly to their public watchlist grid!
                 window.open(`https://letterboxd.com/${cleanUsername}/watchlist/`, '_blank');
             }
         });
@@ -260,10 +254,8 @@
         });
 
         function processCSV(file) {
-            // Hide the massive drop zone
-            dropZone.classList.add('hidden');
+            dropZone.classList.add('hidden'); // Hide the drop zone
             
-            // Show the massive loading animation
             progressContainer.classList.remove('hidden');
             progressContainer.classList.add('flex');
             progressText.innerText = loadingMessages[0];
@@ -272,16 +264,26 @@
             Papa.parse(file, {
                 header: true, skipEmptyLines: true,
                 complete: function(results) {
-                    movies = results.data.map(row => ({
-                        _CoreTitle: row.Name || row.Title || '',
-                        _CoreYear: row.Year || '',
-                        // BUG FIX: Letterboxd uses a literal space in "Letterboxd URI"
-                        Link: row['Letterboxd URI'] || row.URL || row.LetterboxdURI || '',
-                        Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
-                        _CoreRuntime: 0, 
-                        _CorePoster: null, // Posters are kept null during background sync
-                        _Loaded: false
-                    })).filter(m => m._CoreTitle !== '');
+                    movies = results.data.map(row => {
+                        // Highly aggressive URL locator to find the Letterboxd link
+                        let urlVal = '';
+                        for (let key in row) {
+                            if (key.toLowerCase().includes('uri') || key.toLowerCase().includes('url') || key.toLowerCase().includes('link')) {
+                                urlVal = row[key];
+                                break;
+                            }
+                        }
+
+                        return {
+                            _CoreTitle: row.Name || row.Title || '',
+                            _CoreYear: row.Year || '',
+                            Link: urlVal, // The extracted Link
+                            Genre: '', Country: '', Director: '', 'Cinema Movement/Era': '',
+                            _CoreRuntime: 0, 
+                            _CorePoster: null, 
+                            _Loaded: false
+                        };
+                    }).filter(m => m._CoreTitle !== '');
 
                     if(movies.length === 0) {
                         progressText.innerHTML = '<span class="text-red-500">Error: No valid movies found.</span>';
@@ -290,7 +292,6 @@
 
                     document.getElementById('movie-count').innerText = `${movies.length} Titles Detected`;
                     
-                    // Kick off the 25-lane superhighway!
                     syncedCount = 0;
                     isSyncingBackground = true;
                     enrichBatch();
@@ -304,17 +305,14 @@
         async function enrichBatch() {
             if (!isSyncingBackground) return;
 
-            // Grab the next 25 unloaded movies
             let targets = movies.filter(m => !m._Loaded).slice(0, 25);
             
             if (targets.length === 0) {
-                // SUCCESS COMPLETION STATE
                 progressBar.style.width = '100%';
                 progressText.innerHTML = '<span class="text-neon font-bold tracking-widest">✓ LIBRARY UNLOCKED</span>';
                 progressPercentage.innerText = "100% - Ready to Spin!";
                 isSyncingBackground = false;
                 
-                // Wait briefly, fade out loader, fade in grid
                 setTimeout(() => {
                     progressContainer.classList.add('opacity-0'); 
                     setTimeout(() => {
@@ -326,10 +324,8 @@
                 return;
             }
 
-            // Lock targets immediately
             targets.forEach(t => t._Loaded = true);
 
-            // Fetch 25 simultaneously
             await Promise.all(targets.map(async (target) => {
                 try {
                     const detailRes = await fetch(`/api/fetch-movie-details?title=${encodeURIComponent(target._CoreTitle)}&year=${target._CoreYear}`);
@@ -340,13 +336,12 @@
                         target.Director = meta.director;
                         target['Cinema Movement/Era'] = meta.era;
                         target._CoreRuntime = meta.runtime;
-                        target._CorePoster = meta.poster; // Stores URL string
+                        target._CorePoster = meta.poster; 
                     }
                 } catch (e) { console.error("TMDB Sync Error"); }
                 syncedCount++;
             }));
 
-            // Update Progress UI
             const percentComplete = Math.floor((syncedCount / movies.length) * 100);
             progressBar.style.width = `${percentComplete}%`;
             progressPercentage.innerText = `${percentComplete}% - Syncing TMDB Metadata...`;
@@ -356,24 +351,20 @@
                 progressText.innerText = randomMsg;
             }
 
-            // Fire next batch instantly
             enrichBatch(); 
         }
 
         function setupInterfaceAfterLoad() {
-            // Build DOM elements
             buildFiltersOptimized();
             recalibrateRuntimeSlider();
             applyFilters();
 
-            // Unlock Controls
             document.getElementById('controls-panel').classList.remove('opacity-30', 'pointer-events-none');
             document.getElementById('spin-btn').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('spin-btn').disabled = false;
             document.getElementById('crazy-btn').classList.remove('opacity-50', 'cursor-not-allowed');
             document.getElementById('crazy-btn').disabled = false;
             
-            // Show Grid!
             movieGrid.classList.remove('opacity-0', 'pointer-events-none');
 
             if(blindBoxMode) {
@@ -612,8 +603,9 @@
                             <div class="bg-[#050505] rounded border border-slate-800/50 p-3 mb-4">${infoHTML || '<span class="text-slate-700 text-xs italic">Syncing details...</span>'}</div>
                         </div>
                         ${m.Link ? `
-                        <a href="${m.Link}" target="_blank" class="text-slate-500 hover:text-highlight transition-colors flex items-center gap-1 text-xs uppercase tracking-wider font-bold mt-auto pt-3 border-t border-slate-800/50">
-                            Letterboxd <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                        <a href="${m.Link}" target="_blank" class="mt-4 bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-neon text-[10px] uppercase tracking-widest font-bold py-2 px-3 rounded flex items-center justify-center gap-2 border border-slate-800 transition-colors w-full">
+                            Open on Letterboxd
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
                         </a>
                         ` : ''}
                     </div>`;
@@ -653,7 +645,6 @@
             document.getElementById('winner-year').innerText = movie._CoreYear || '';
             document.getElementById('winner-modal').classList.remove('opacity-0', 'pointer-events-none');
             
-            // THE POSTER IS FINALLY INJECTED INTO THE DOM HERE
             const poster = document.getElementById('winner-poster');
             if (movie._CorePoster) {
                 poster.src = movie._CorePoster;
