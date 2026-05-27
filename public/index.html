@@ -28,7 +28,13 @@
         .hide-scrollbar::-webkit-scrollbar { display: none; }
         .filter-chip input:checked + div { background-color: #064e3b; border-color: #10b981; color: #10b981; }
         details > summary { list-style: none; } details > summary::-webkit-details-marker { display: none; }
-        input[type="range"].accent-neon { accent-color: #10b981; }
+        
+        /* Custom Fat Slider */
+        input[type="range"] { -webkit-appearance: none; background: transparent; }
+        input[type="range"]::-webkit-slider-runnable-track { background: #1e293b; height: 10px; border-radius: 8px; border: 1px solid #334155; }
+        input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; margin-top: -5px; background: #10b981; height: 20px; width: 20px; border-radius: 50%; border: 2px solid #050505; box-shadow: 0 0 10px rgba(16, 185, 129, 0.5); cursor: pointer; transition: transform 0.1s; }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        
         .hardware-scroll { -webkit-overflow-scrolling: touch; overscroll-behavior-y: contain; transform: translateZ(0); }
         .content-visibility-auto { content-visibility: auto; contain-intrinsic-size: 0 100px; }
 
@@ -102,15 +108,18 @@
             </div>
 
             <div class="glass-panel p-6 rounded-xl opacity-30 pointer-events-none transition-opacity duration-500 max-h-[70vh] overflow-y-auto hide-scrollbar hardware-scroll" id="controls-panel">
-                <div id="runtime-filter-container" class="mb-6 bg-[#050505] p-4 rounded-lg border border-slate-800 shadow-inner">
-                    <div class="flex justify-between items-center mb-3">
+                
+                <div id="runtime-filter-container" class="mb-6 bg-[#050505] p-5 rounded-lg border border-slate-800 shadow-inner">
+                    <div class="flex justify-between items-center mb-4">
                         <span class="text-[10px] uppercase tracking-widest text-slate-500 font-bold">Time-to-Kill</span>
-                        <span id="time-display" class="text-xs font-mono text-neon bg-emerald-900/20 px-2 py-0.5 rounded">Any</span>
+                        <span id="time-display" class="text-sm font-bold font-mono text-neon bg-emerald-900/20 px-2 py-0.5 rounded shadow-[0_0_10px_rgba(16,185,129,0.2)]">Any</span>
                     </div>
-                    <input type="range" id="time-slider" min="30" max="240" value="240" class="w-full accent-neon cursor-pointer">
-                    <div class="flex justify-between text-[9px] text-slate-600 mt-2 font-mono">
+                    <div class="relative w-full">
+                        <input type="range" id="time-slider" min="0" max="100" value="100" class="w-full">
+                    </div>
+                    <div class="flex justify-between text-[10px] text-slate-500 mt-3 font-mono tracking-widest font-bold">
                         <span id="time-min-label">Min</span>
-                        <span id="time-max-label">Max</span>
+                        <span id="time-max-label">Any</span>
                     </div>
                 </div>
                 
@@ -121,7 +130,7 @@
 
                 <div class="flex justify-between items-end mb-4">
                     <h3 class="text-xs font-bold text-slate-500 uppercase tracking-widest">Library Filters</h3>
-                    <button id="clear-filters" class="text-[10px] text-slate-500 hover:text-neon uppercase tracking-wider hidden">Clear All</button>
+                    <button id="clear-filters" class="text-[10px] text-slate-500 hover:text-neon uppercase tracking-wider hidden border border-slate-800 px-2 py-1 rounded bg-slate-900">Clear All</button>
                 </div>
                 <div id="dynamic-filters-container" class="flex flex-col gap-4">
                     <p class="text-slate-600 text-sm italic">Filters will appear after load.</p>
@@ -199,6 +208,7 @@
     <script>
         let movies = [];
         let spinPool = []; 
+        let uniqueRuntimes = []; // Powers the new index-based slider
         let isSpinning = false;
         let filterableColumns = [
             { id: 'genre', rawHeader: 'Genre', uiLabel: 'Genre', isEra: false },
@@ -214,7 +224,6 @@
         let audioCtx;
         let soundEnabled = false;
 
-        // Progress Bar Cinematic Text Array
         const loadingMessages = [
             "Loading your watchlist, chill for now...",
             "Loading, go and grab popcorn 🍿...",
@@ -248,38 +257,55 @@
         // ==========================================
         // DYNAMIC ERA CALCULATOR (Historian Engine)
         // ==========================================
-        function deriveEra(yearStr) {
+        function deriveEra(yearStr, countryStr, genreStr) {
             if (!yearStr) return 'Unclassified';
             const y = parseInt(yearStr);
             if (isNaN(y)) return 'Unclassified';
+            const c = (countryStr || '').toLowerCase();
+            const g = (genreStr || '').toLowerCase();
+
+            // 1. Specific Historical Movements (Country + Year Match)
+            if (y >= 1919 && y <= 1931 && c.includes('germany')) return 'German Expressionism';
+            if (y >= 1920 && y <= 1930 && c.includes('soviet')) return 'Soviet Montage';
+            if (y >= 1943 && y <= 1952 && c.includes('italy')) return 'Italian Neorealism';
+            if (y >= 1958 && y <= 1969 && c.includes('france')) return 'French New Wave';
+            if (y >= 1960 && y <= 1975 && c.includes('japan')) return 'Japanese New Wave';
+            if (y >= 1962 && y <= 1972 && (c.includes('czechoslovakia') || c.includes('czech'))) return 'Czechoslovak New Wave';
+            if (y >= 1967 && y <= 1980 && (c.includes('usa') || c.includes('united states') || c.includes('america'))) return 'New Hollywood';
+            if (y >= 1995 && y <= 2005 && c.includes('denmark')) return 'Dogme 95 Movement';
+            if (y >= 1960 && y <= 1979 && c.includes('italy') && g.includes('western')) return 'Spaghetti Western';
+            if (y >= 1970 && y <= 1979 && c.includes('italy') && (g.includes('horror') || g.includes('thriller'))) return 'Giallo';
+
+            // 2. Generic Decades Fallback
             if (y < 1930) return 'Silent Era & Early Cinema (Pre-1930)';
-            if (y >= 1930 && y < 1940) return 'The 30s: Golden Age & Pre-Code';
+            if (y >= 1930 && y < 1940) return 'The 30s: Golden Age';
             if (y >= 1940 && y < 1950) return 'The 40s: WWII & Noir';
-            if (y >= 1950 && y < 1960) return 'The 50s: Post-War & Studio Era';
-            if (y >= 1960 && y < 1970) return 'The 60s: New Waves & Counterculture';
-            if (y >= 1970 && y < 1980) return 'The 70s: New Hollywood & Grit';
+            if (y >= 1950 && y < 1960) return 'The 50s: Post-War Era';
+            if (y >= 1960 && y < 1970) return 'The 60s: Global Transitions';
+            if (y >= 1970 && y < 1980) return 'The 70s: Auteur Era';
             if (y >= 1980 && y < 1990) return 'The 80s: Blockbuster Boom';
             if (y >= 1990 && y < 2000) return 'The 90s: Indie Revolution';
-            if (y >= 2000 && y < 2010) return 'The 2000s: Digital Transition';
-            if (y >= 2010 && y < 2020) return 'The 2010s: Streaming & Spectacle';
-            if (y >= 2020) return 'The 2020s: Contemporary Era';
+            if (y >= 2000 && y < 2010) return 'The 2000s: Digital Dawn';
+            if (y >= 2010 && y < 2020) return 'The 2010s: Streaming Age';
+            if (y >= 2020) return 'The 2020s: Contemporary';
             return 'Unclassified';
         }
 
-        function getMasterEra(eraName) {
-            const name = eraName.toLowerCase();
-            if (name.includes('pre-1930') || name.includes('30s') || name.includes('40s') || name.includes('50s') || name.includes('golden age') || name.includes('silent')) {
-                return "Early & Classic Cinema (Pre-1960)";
-            }
-            if (name.includes('60s') || name.includes('70s') || name.includes('new wave')) {
-                return "The New Waves & Auteurs (1960s-1970s)";
-            }
-            if (name.includes('80s') || name.includes('90s') || name.includes('blockbuster')) {
-                return "Blockbuster & Indie Boom (1980s-1990s)";
-            }
-            if (name.includes('2000s') || name.includes('2010s') || name.includes('2020s') || name.includes('digital') || name.includes('streaming')) {
-                return "Modern & Contemporary (2000s-Present)";
-            }
+        // Groups specific niche eras into clean folders
+        function getMasterEra(nicheName) {
+            const n = nicheName.toLowerCase();
+            if (n.includes('expressionism') || n.includes('soviet')) return "Formalism & Early Avant-Garde";
+            if (n.includes('neorealism')) return "Post-War Realism";
+            if (n.includes('new wave')) return "The New Waves (1950s-1970s)";
+            if (n.includes('new hollywood')) return "The American Renaissance";
+            if (n.includes('dogme')) return "Contemporary & Minimalist";
+            if (n.includes('spaghetti') || n.includes('giallo')) return "Genre & Pulp Movements";
+            
+            if (n.includes('pre-1930') || n.includes('30s') || n.includes('40s') || n.includes('50s')) return "Early & Classic Cinema (Pre-1960)";
+            if (n.includes('60s') || n.includes('70s')) return "Mid-Century & Auteur Cinema (1960s-1970s)";
+            if (n.includes('80s') || n.includes('90s')) return "Blockbusters & Indie Boom (1980s-1990s)";
+            if (n.includes('2000s') || n.includes('2010s') || n.includes('2020s')) return "Modern Cinema (2000s-Present)";
+            
             return "Other Cinema Movements"; 
         }
 
@@ -308,7 +334,6 @@
 
         function processCSV(file) {
             dropZone.classList.add('hidden'); 
-            
             progressContainer.classList.remove('hidden');
             progressContainer.classList.add('flex');
             progressText.innerText = loadingMessages[0];
@@ -343,7 +368,6 @@
                     }
 
                     document.getElementById('movie-count').innerText = `${movies.length} Titles Detected`;
-                    
                     syncedCount = 0;
                     isSyncingBackground = true;
                     enrichBatch();
@@ -386,14 +410,14 @@
                         target.Genre = meta.genres;
                         target.Country = meta.countries;
                         target.Director = meta.director;
-                        target['Cinema Movement/Era'] = meta.era || deriveEra(target._CoreYear);
+                        target['Cinema Movement/Era'] = deriveEra(target._CoreYear, target.Country, target.Genre);
                         target._CoreRuntime = meta.runtime;
                         target._CorePoster = meta.poster; 
                     } else {
-                        target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
+                        target['Cinema Movement/Era'] = deriveEra(target._CoreYear, '', '');
                     }
                 } catch (e) { 
-                    target['Cinema Movement/Era'] = deriveEra(target._CoreYear);
+                    target['Cinema Movement/Era'] = deriveEra(target._CoreYear, '', '');
                 }
                 syncedCount++;
             }));
@@ -433,25 +457,29 @@
             }
         }
 
-        // --- Dynamic Runtime Slider ---
+        // ==========================================
+        // INDEX-BASED RUNTIME SLIDER ENGINE
+        // ==========================================
         function recalibrateRuntimeSlider() {
-            let runtimes = movies.map(m => m._CoreRuntime || 0).filter(r => r > 0);
-            if(runtimes.length === 0) return;
+            uniqueRuntimes = [...new Set(movies.map(m => m._CoreRuntime || 0).filter(r => r > 0))].sort((a,b) => a - b);
             
-            let minRun = Math.min(...runtimes);
-            let maxRun = Math.max(...runtimes);
-            
-            timeSlider.min = minRun > 0 ? minRun : 1;
-            timeSlider.max = maxRun;
-            timeSlider.value = maxRun;
+            if (uniqueRuntimes.length === 0) return;
+
+            timeSlider.min = 0;
+            timeSlider.max = uniqueRuntimes.length - 1;
+            timeSlider.value = timeSlider.max; 
             
             timeDisplay.innerText = "Any";
-            document.getElementById('time-min-label').innerText = `${timeSlider.min}m`;
+            document.getElementById('time-min-label').innerText = `${uniqueRuntimes[0]}m`;
             document.getElementById('time-max-label').innerText = `Any`;
         }
 
         timeSlider.addEventListener('input', (e) => {
-            timeDisplay.innerText = e.target.value == timeSlider.max ? "Any" : `< ${e.target.value}m`;
+            if(uniqueRuntimes.length === 0) return;
+            const sliderIndex = parseInt(e.target.value, 10);
+            const isMax = sliderIndex === parseInt(e.target.max, 10);
+            
+            timeDisplay.innerText = isMax ? "Any" : `< ${uniqueRuntimes[sliderIndex]}m`;
             applyFilters();
         });
 
@@ -603,7 +631,6 @@
             filterableColumns.forEach(colObj => {
                 const uniqueValues = new Set();
                 
-                // Aggressive Splitting for "Adventure/Comedy" -> "Adventure", "Comedy"
                 movies.forEach(m => { 
                     if(m[colObj.rawHeader]) {
                         m[colObj.rawHeader].split(/[,/|\\]/).forEach(val => {
@@ -619,7 +646,6 @@
 
                 let catHTML = `<details class="group bg-[#0a0a0a] rounded-lg border border-slate-800 open:pb-4 relative content-visibility-auto"><summary class="flex justify-between items-center p-4 cursor-pointer font-bold text-[11px] uppercase tracking-wider text-slate-400 hover:bg-slate-900/50">${colObj.uiLabel} <svg class="w-4 h-4 transition-transform group-open:rotate-180 text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></summary><div class="p-4 pb-2 relative">`;
 
-                // Add Search Bar to everything except the pre-structured Eras
                 if (!colObj.isEra) {
                     catHTML += `<div class="mb-4 sticky top-0 bg-[#0a0a0a] z-10 pb-3 border-b border-slate-800/80 -mt-2 pt-2">
                         <input type="text" placeholder="Search ${colObj.uiLabel}..." class="w-full bg-[#050505] border border-slate-700 rounded p-2 text-xs text-slate-300 focus:outline-none focus:border-neon category-search transition-colors placeholder:text-slate-600">
@@ -630,7 +656,6 @@
                     });
                     catHTML += `</div>`;
                 } else {
-                    // Custom Hierarchy Renderer for Eras
                     const groupedEras = {}; 
                     valsArray.forEach(val => {
                         const master = getMasterEra(val);
@@ -656,10 +681,9 @@
                 catHTML += `</div></details>`;
                 filtersHTML += catHTML;
             });
-            dynamicFiltersContainer.innerHTML = filtersHTML || '<p class="text-slate-600 text-sm italic">No data found.</p>';
+            dynamicFiltersContainer.innerHTML = filtersHTML || '<p class="text-slate-600 text-sm italic">Fetching filter data...</p>';
         }
 
-        // Live Search Bar Logic for Checkboxes
         document.getElementById('dynamic-filters-container').addEventListener('input', (e) => {
             if (e.target.matches('.category-search')) {
                 const term = e.target.value.toLowerCase();
@@ -671,7 +695,6 @@
             }
         });
 
-        // Filter Checkbox Logic
         document.getElementById('dynamic-filters-container').addEventListener('change', (e) => {
             if (e.target.matches('.filter-chip-input') || e.target.matches('.master-cb')) {
                 
@@ -707,7 +730,6 @@
                     if (selectedVals && selectedVals.length > 0) {
                         if (!m[colObj.rawHeader]) return false; 
                         
-                        // Treat "Adventure/Comedy" dynamically during filtering
                         const movieVals = m[colObj.rawHeader].split(/[,/|\\]/).map(v => v.trim().toLowerCase());
                         if (!selectedVals.some(sv => movieVals.includes(sv.toLowerCase()))) return false;
                     }
@@ -715,27 +737,38 @@
                 return true;
             });
             
-            const sliderVal = parseInt(timeSlider.value, 10);
-            const isMax = sliderVal === parseInt(timeSlider.max, 10);
-            
-            spinPool = displayPool.filter(m => !m._Loaded || m._CoreRuntime === 0 || isMax || m._CoreRuntime <= sliderVal);
-            renderGrid(displayPool, sliderVal, isMax);
+            const sliderIndex = parseInt(timeSlider.value, 10);
+            const isMax = sliderIndex === parseInt(timeSlider.max, 10);
+            const maxAllowedRuntime = isMax ? Infinity : uniqueRuntimes[sliderIndex];
+
+            // DYNAMIC FLOATING SORT: Playable films float to the top!
+            displayPool.sort((a, b) => {
+                const aLocked = a._Loaded && a._CoreRuntime > 0 && !isMax && a._CoreRuntime > maxAllowedRuntime;
+                const bLocked = b._Loaded && b._CoreRuntime > 0 && !isMax && b._CoreRuntime > maxAllowedRuntime;
+                if (aLocked && !bLocked) return 1;  // a sinks
+                if (!aLocked && bLocked) return -1; // a floats
+                return 0;
+            });
+
+            spinPool = displayPool.filter(m => !m._Loaded || m._CoreRuntime === 0 || isMax || m._CoreRuntime <= maxAllowedRuntime);
+            renderGrid(displayPool, maxAllowedRuntime, isMax);
         }
 
-        function renderGrid(displayPool, sliderVal, isMax) {
+        function renderGrid(displayPool, maxAllowedRuntime, isMax) {
             document.getElementById('filtered-count').innerText = `${spinPool.length} playable`;
             if(displayPool.length === 0) { 
                 document.getElementById('movie-grid').innerHTML = '<div class="col-span-full h-full flex items-center justify-center text-slate-600"><p class="text-sm">No matches found.</p></div>'; 
                 return; 
             }
             let gridHTML = '';
-            displayPool.slice(0, 100).forEach(m => {
+            // Upped render limit to 300 to show more playable items without lag
+            displayPool.slice(0, 300).forEach(m => {
                 let infoHTML = '';
                 filterableColumns.forEach(colObj => {
                     if(m[colObj.rawHeader]) infoHTML += `<div class="flex flex-col mb-2 last:mb-0"><span class="text-[9px] uppercase tracking-widest text-slate-600">${colObj.uiLabel}</span><span class="text-sm text-slate-300 font-medium">${m[colObj.rawHeader]}</span></div>`;
                 });
                 
-                const isLockedOut = m._Loaded && m._CoreRuntime > 0 && !isMax && m._CoreRuntime > sliderVal;
+                const isLockedOut = m._Loaded && m._CoreRuntime > 0 && !isMax && m._CoreRuntime > maxAllowedRuntime;
                 
                 gridHTML += `
                     <div class="bg-[#0a0a0a] border border-slate-800 rounded-lg p-5 flex flex-col ${isLockedOut ? 'time-locked' : ''}">
