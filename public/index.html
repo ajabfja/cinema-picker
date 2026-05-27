@@ -82,6 +82,11 @@
                     Clicking <strong>Get</strong> redirects to your public watchlist.<br>
                     <span class="text-slate-400 block mt-1">To download your file:</span> Click the prominent <strong>Export Watchlist</strong> button on that page to instantly download your <span class="text-neon font-bold">watchlist.csv</span>.
                 </p>
+
+                <h3 class="text-slate-300 font-bold tracking-widest uppercase text-sm border-b border-slate-800 pb-2 mt-2">2. Import & Enrich</h3>
+                <p class="text-[11px] text-slate-400 font-medium leading-relaxed text-center py-2 bg-[#050505] rounded border border-slate-800">
+                    Drag and drop your downloaded CSV into the large <strong>Director's Cut</strong> window to the right! 👉
+                </p>
             </div>
 
             <div class="glass-panel p-6 rounded-xl">
@@ -169,12 +174,18 @@
                 </div>
                 <h2 id="winner-title" class="text-4xl font-bold text-white mb-2 leading-tight tracking-tight relative z-10">Title</h2>
                 <p id="winner-year" class="text-slate-400 font-mono text-lg mb-6 tracking-widest relative z-10">Year</p>
-                <div id="winner-meta" class="flex flex-wrap justify-center gap-2 mb-8 relative z-10"></div>
+                <div id="winner-meta" class="flex flex-wrap justify-center gap-2 mb-6 relative z-10"></div>
                 
-                <a id="winner-link" href="#" target="_blank" class="w-full bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-6 rounded transition-colors flex items-center justify-center gap-2 mb-4 group relative z-10">
-                    Open on Letterboxd
-                    <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
-                </a>
+                <div class="flex gap-3 w-full mb-4 relative z-10">
+                    <a id="winner-link" href="#" target="_blank" class="flex-1 bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white font-medium py-3 px-4 rounded transition-colors flex items-center justify-center gap-2 group">
+                        Letterboxd
+                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                    </a>
+                    <a id="winner-trailer" href="#" target="_blank" class="flex-1 bg-red-950/30 hover:bg-red-900/50 border border-red-900/50 text-red-400 hover:text-red-300 font-medium py-3 px-4 rounded transition-colors flex items-center justify-center gap-2 group">
+                        Trailer
+                        <svg class="w-4 h-4 opacity-50 group-hover:opacity-100 transition-opacity" fill="currentColor" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+                    </a>
+                </div>
 
                 <button id="close-modal" class="text-slate-600 hover:text-slate-400 text-xs tracking-widest uppercase transition-colors mt-2 relative z-10">Dismiss</button>
             </div>
@@ -226,6 +237,7 @@
             const user = document.getElementById('lb-username-export').value.trim();
             const cleanUsername = user.toLowerCase().replace(/[^a-z0-9_-]/g, '');
             if (cleanUsername) {
+                // Takes the user directly to their public watchlist grid!
                 window.open(`https://letterboxd.com/${cleanUsername}/watchlist/`, '_blank');
             }
         });
@@ -670,7 +682,7 @@
                 }
             });
 
-            // ENSURE WINNER LINK BUTTON WORKS
+            // ENSURE WINNER LINK & TRAILER BUTTONS WORK
             const winnerLink = document.getElementById('winner-link');
             if(movie.Link) { 
                 winnerLink.href = movie.Link; 
@@ -678,6 +690,10 @@
             } else { 
                 winnerLink.style.display = 'none'; 
             }
+
+            const winnerTrailer = document.getElementById('winner-trailer');
+            winnerTrailer.href = `https://www.youtube.com/results?search_query=${encodeURIComponent(movie._CoreTitle + ' ' + movie._CoreYear + ' trailer')}`;
+            winnerTrailer.style.display = 'flex';
         }
 
         document.getElementById('close-modal').addEventListener('click', () => {
